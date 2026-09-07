@@ -1,0 +1,403 @@
+---
+name: Build signed Home Server Alma testing images
+
+on:
+  push:
+    branches: [testing]
+    paths-ignore:
+      - '**/README.md'
+      - 'docs/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '40 6 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-testing
+  cancel-in-progress: true
+
+env:
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  CURRENT_TAG: 'testing'
+  RECHUNK_MAX_LAYERS: '127'
+  OCI_LAYER_LIMIT: '128'
+  ALMA_REPOS_IMAGE: quay.io/almalinuxorg/10-base:10
+  BOOTC_IMAGECTL_IMAGE: quay.io/centos-bootc/centos-bootc:stream10
+  ALMA_BUILDER_IMAGE: quay.io/almalinuxorg/10-kitten-base:10-kitten
+  FEDORA_BUILDER_IMAGE: registry.fedoraproject.org/fedora:44
+
+jobs:
+  resolve_external:
+    name: Resolve current external software
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      build_date: ${{ steps.metadata.outputs.build_date }}
+      source_sha: ${{ steps.metadata.outputs.source_sha }}
+      mergerfs_tag: ${{ steps.external.outputs.mergerfs_tag }}
+      mergerfs_url: ${{ steps.external.outputs.mergerfs_url }}
+      mergerfs_sha256: ${{ steps.external.outputs.mergerfs_sha256 }}
+      upside_tag: ${{ steps.external.outputs.upside_tag }}
+      superfile_tag: ${{ steps.external.outputs.superfile_tag }}
+      virtui_tag: ${{ steps.external.outputs.virtui_tag }}
+
+    steps:
+      - name: Checkout testing branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: testing
+
+      - name: Prepare build metadata
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          [[ "${source_sha}" =~ ^[0-9a-f]{40}$ ]]
+          echo "build_date=$(date -u +%Y%m%d)" >> "${GITHUB_OUTPUT}"
+          echo "source_sha=${source_sha}" >> "${GITHUB_OUTPUT}"
+          echo "Testing source revision: ${source_sha}"
+
+      - name: Resolve latest stable external software
+        id: external
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ./build_files/resolve-external-software.sh /tmp/external.env
+          cat /tmp/external.env >> "${GITHUB_OUTPUT}"
+
+      - name: Resolution summary
+        shell: bash
+        run: |
+          {
+            echo '## Testing external software snapshot'
+            echo
+            echo "- Source branch: testing"
+            echo "- Source revision: ${{ steps.metadata.outputs.source_sha }}"
+            echo "- Build date: ${{ steps.metadata.outputs.build_date }}"
+            echo "- mergerfs: ${{ steps.external.outputs.mergerfs_tag }}"
+            echo "- UPSide: ${{ steps.external.outputs.upside_tag || 'degraded/unresolved' }}"
+            echo "- Superfile: ${{ steps.external.outputs.superfile_tag || 'degraded/unresolved' }}"
+            echo "- VirtUI Manager: ${{ steps.external.outputs.virtui_tag || 'unresolved; HCI will fail' }}"
+            echo
+            echo 'Latest stable is resolved on every testing rebuild. Pins in software.env are emergency regression overrides only.'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  build:
+    name: Build testing ${{ matrix.image_name }}
+    needs: resolve_external
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image_name: home-server-alma
+            target: home-server-alma
+            validation_mode: base
+          - image_name: home-server-alma-hci
+            target: home-server-alma-hci
+            validation_mode: hci
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout testing branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: testing
+
+      - name: Verify testing source revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ needs.resolve_external.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ "${actual_sha}" != "${EXPECTED_SHA}" ]]; then
+            echo "ERROR: testing moved during workflow: expected ${EXPECTED_SHA}, got ${actual_sha}" >&2
+            exit 1
+          fi
+
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y podman skopeo jq
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: 'v3.1.2'
+
+      - name: Resolve build inputs to digests
+        id: inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          resolve_ref() {
+            local image="$1"
+            local digest
+            digest="$(skopeo inspect \
+              --override-arch amd64 \
+              --format '{{.Digest}}' \
+              "docker://${image}")"
+            [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+            printf '%s@%s' "${image%:*}" "${digest}"
+          }
+
+          echo "repos_ref=$(resolve_ref "${ALMA_REPOS_IMAGE}")" >> "${GITHUB_OUTPUT}"
+          echo "imagectl_ref=$(resolve_ref "${BOOTC_IMAGECTL_IMAGE}")" >> "${GITHUB_OUTPUT}"
+          echo "alma_builder_ref=$(resolve_ref "${ALMA_BUILDER_IMAGE}")" >> "${GITHUB_OUTPUT}"
+          echo "fedora_builder_ref=$(resolve_ref "${FEDORA_BUILDER_IMAGE}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Pre-pull resolved build inputs
+        shell: bash
+        env:
+          ALMA_REPOS_REF: ${{ steps.inputs.outputs.repos_ref }}
+          BOOTC_IMAGECTL_REF: ${{ steps.inputs.outputs.imagectl_ref }}
+          ALMA_BUILDER_REF: ${{ steps.inputs.outputs.alma_builder_ref }}
+          FEDORA_BUILDER_REF: ${{ steps.inputs.outputs.fedora_builder_ref }}
+        run: |
+          set -euo pipefail
+
+          pull_with_retry() {
+            local image="$1"
+            local attempt
+            for attempt in 1 2 3; do
+              echo "Pull ${attempt}/3: ${image}"
+              if sudo podman pull "${image}"; then
+                return 0
+              fi
+              if [[ "${attempt}" -lt 3 ]]; then
+                sleep $((attempt * 10))
+              fi
+            done
+            echo "ERROR: failed to pull ${image} after 3 attempts." >&2
+            return 1
+          }
+
+          pull_with_retry "${ALMA_REPOS_REF}"
+          pull_with_retry "${BOOTC_IMAGECTL_REF}"
+          pull_with_retry "${ALMA_BUILDER_REF}"
+          pull_with_retry "${FEDORA_BUILDER_REF}"
+
+      - name: Prepare testing image names and immutable tag
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          registry="${IMAGE_REGISTRY,,}"
+          image_name="${{ matrix.image_name }}"
+          short_sha="${SOURCE_SHA:0:7}"
+          build_date="${{ needs.resolve_external.outputs.build_date }}"
+          build_tag="${CURRENT_TAG}-${build_date}-${short_sha}"
+
+          echo "IMAGE_REGISTRY=${registry}" >> "${GITHUB_ENV}"
+          echo "IMAGE_NAME=${image_name}" >> "${GITHUB_ENV}"
+          echo "IMAGE_REPOSITORY=${registry}/${image_name}" >> "${GITHUB_ENV}"
+          echo "BUILD_TAG=${build_tag}" >> "${GITHUB_ENV}"
+
+      - name: Build image
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
+          ALMA_REPOS_REF: ${{ steps.inputs.outputs.repos_ref }}
+          BOOTC_IMAGECTL_REF: ${{ steps.inputs.outputs.imagectl_ref }}
+          ALMA_BUILDER_REF: ${{ steps.inputs.outputs.alma_builder_ref }}
+          FEDORA_BUILDER_REF: ${{ steps.inputs.outputs.fedora_builder_ref }}
+        run: |
+          set -euo pipefail
+
+          sudo podman build \
+            --pull=never \
+            --security-opt=label=disable \
+            --cap-add=all \
+            --device /dev/fuse \
+            --target "${{ matrix.target }}" \
+            --build-arg "ALMA_REPOS_IMAGE=${ALMA_REPOS_REF}" \
+            --build-arg "BOOTC_IMAGECTL_IMAGE=${BOOTC_IMAGECTL_REF}" \
+            --build-arg "ALMA_BUILDER_IMAGE=${ALMA_BUILDER_REF}" \
+            --build-arg "FEDORA_BUILDER_IMAGE=${FEDORA_BUILDER_REF}" \
+            --build-arg "UPSIDE_TAG=${{ needs.resolve_external.outputs.upside_tag }}" \
+            --build-arg "SUPERFILE_TAG=${{ needs.resolve_external.outputs.superfile_tag }}" \
+            --build-arg "VIRTUI_MANAGER_TAG=${{ needs.resolve_external.outputs.virtui_tag }}" \
+            --build-arg "MERGERFS_URL=${{ needs.resolve_external.outputs.mergerfs_url }}" \
+            --build-arg "MERGERFS_SHA256=${{ needs.resolve_external.outputs.mergerfs_sha256 }}" \
+            --build-arg "HOME_SERVER_ALMA_REPOSITORY=${IMAGE_REGISTRY}/home-server-alma" \
+            --build-arg "HOME_SERVER_ALMA_HCI_REPOSITORY=${IMAGE_REGISTRY}/home-server-alma-hci" \
+            --label "org.opencontainers.image.revision=${SOURCE_SHA}" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --tag "${IMAGE_NAME}:unrechunked" \
+            --file Containerfile \
+            .
+
+      - name: Rechunk image
+        id: rechunk
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rechunk_tmp="${RUNNER_TEMP}/${IMAGE_NAME}-rechunk"
+          sudo mkdir -p "${rechunk_tmp}"
+          sudo chmod 1777 "${rechunk_tmp}"
+
+          df -h "${RUNNER_TEMP}" /var/lib/containers
+
+          sudo podman run --rm --privileged \
+            -v /var/lib/containers:/var/lib/containers \
+            -v "${rechunk_tmp}:/var/tmp" \
+            --entrypoint /usr/libexec/bootc-base-imagectl \
+            "localhost/${IMAGE_NAME}:unrechunked" \
+            rechunk \
+            --max-layers "${RECHUNK_MAX_LAYERS}" \
+            "localhost/${IMAGE_NAME}:unrechunked" \
+            "localhost/${IMAGE_NAME}:test"
+
+          layer_count="$(
+            sudo skopeo inspect --raw \
+              "containers-storage:localhost/${IMAGE_NAME}:test" \
+              | jq -r '.layers | length'
+          )"
+
+          [[ "${layer_count}" =~ ^[0-9]+$ ]]
+          if (( layer_count > OCI_LAYER_LIMIT )); then
+            echo "ERROR: rechunked image has ${layer_count} layers; OCI maximum is ${OCI_LAYER_LIMIT}" >&2
+            exit 1
+          fi
+
+          echo "layers=${layer_count}" >> "${GITHUB_OUTPUT}"
+          echo "Rechunked image layers: ${layer_count} / OCI max ${OCI_LAYER_LIMIT} (RPM chunk target ${RECHUNK_MAX_LAYERS})"
+
+      - name: Critical common health
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo podman run --rm --privileged --device /dev/fuse \
+            --entrypoint /usr/libexec/home-server-alma/health/critical-common \
+            "${IMAGE_NAME}:test"
+
+      - name: Critical HCI health
+        if: matrix.validation_mode == 'hci'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo podman run --rm \
+            --entrypoint /usr/libexec/home-server-alma/health/critical-hci \
+            "${IMAGE_NAME}:test"
+
+      - name: Confirm base image has no HCI host stack
+        if: matrix.validation_mode == 'base'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rpm_out="$(sudo podman run --rm --entrypoint rpm "${IMAGE_NAME}:test" -q libvirt-daemon-kvm 2>&1)"; then
+            echo 'ERROR: base image unexpectedly contains libvirt-daemon-kvm'
+            echo "${rpm_out}"
+            exit 1
+          fi
+          echo 'PASS  HCI virtualization stack absent from base image'
+
+      - name: Optional feature health
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo podman run --rm \
+            --entrypoint /usr/libexec/home-server-alma/health/optional \
+            "${IMAGE_NAME}:test" | tee /tmp/optional-health.txt
+          {
+            echo '### Optional feature health'
+            echo
+            echo '```text'
+            cat /tmp/optional-health.txt
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Login to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/.docker"
+          printf '%s' "${GHCR_TOKEN}" | podman login \
+            --authfile "${HOME}/.docker/config.json" \
+            ghcr.io \
+            --username "${GITHUB_ACTOR}" \
+            --password-stdin
+          chmod 600 "${HOME}/.docker/config.json"
+
+      - name: Push testing image tags
+        id: push
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo podman tag "${IMAGE_NAME}:test" "${IMAGE_REPOSITORY}:${BUILD_TAG}"
+          sudo podman tag "${IMAGE_NAME}:test" "${IMAGE_REPOSITORY}:${CURRENT_TAG}"
+
+          sudo podman push \
+            --authfile "${HOME}/.docker/config.json" \
+            --digestfile /tmp/published-digest \
+            "${IMAGE_REPOSITORY}:${BUILD_TAG}"
+          sudo podman push \
+            --authfile "${HOME}/.docker/config.json" \
+            "${IMAGE_REPOSITORY}:${CURRENT_TAG}"
+
+          digest="$(cat /tmp/published-digest)"
+          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Sign image digest
+        shell: bash
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign -y \
+            --new-bundle-format=false \
+            --use-signing-config=false \
+            --key env://COSIGN_PRIVATE_KEY \
+            "${IMAGE_REPOSITORY}@${DIGEST}"
+
+      - name: Verify published signature
+        shell: bash
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --new-bundle-format=false \
+            --key cosign.pub \
+            "${IMAGE_REPOSITORY}@${DIGEST}"
+
+      - name: Build summary
+        if: always()
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
+          RECHUNK_LAYERS: ${{ steps.rechunk.outputs.layers }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "## Testing ${{ matrix.image_name }}"
+            echo
+            echo "- Source branch: testing"
+            echo "- Source revision: ${SOURCE_SHA}"
+            echo "- Target: ${{ matrix.target }}"
+            echo "- Rechunked layers: ${RECHUNK_LAYERS:-unknown} / OCI max ${OCI_LAYER_LIMIT} (RPM chunk target ${RECHUNK_MAX_LAYERS})"
+            echo "- Moving tag: ${IMAGE_REPOSITORY:-not-published}:${CURRENT_TAG}"
+            echo "- Immutable tag: ${IMAGE_REPOSITORY:-not-published}:${BUILD_TAG:-n/a}"
+            echo "- Digest: ${DIGEST:-not-published}"
+          } >> "${GITHUB_STEP_SUMMARY}"
