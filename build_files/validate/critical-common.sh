@@ -44,14 +44,14 @@ test "$(stat -c '%a %U %G' /var/tmp)" = "1777 root root"
 pass '/var/tmp early-boot mountpoint'
 
 for cmd in \
-    sudo visudo podman nmcli resolvectl firewall-cmd sshd cockpit-bridge \
+    sudo visudo podman toolbox nmcli resolvectl firewall-cmd sshd cockpit-bridge \
     mergerfs btrfs mkfs.btrfs exportfs smbd testparm; do
     command -v "${cmd}" >/dev/null
     pass "command ${cmd}"
 done
 
 rpm -q \
-    sudo systemd-resolved \
+    sudo systemd-resolved toolbox \
     btrfs-progs nfs-utils samba \
     intel-compute-runtime \
     cockpit-system cockpit-files cockpit-podman cockpit-storaged >/dev/null
