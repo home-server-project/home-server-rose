@@ -30,7 +30,7 @@ The testing channel is intended for earlier exposure to current Home Server Alma
 upstream AlmaLinux and external-project updates. Stable and testing use the same critical health checks
 and image-signing process.
 
-Both images contain the same full Home Server feature set: Podman + Quadlets, Cockpit host
+Both images contain the same full Home Server feature set: Podman + Quadlets, Toolbx, Cockpit host
 integration, storage/NAS tools, NUT + UPSide, Tailscale, NetBird, WireGuard tools, Intel/AMD
 hardware, and practical terminal administration tools.
 
