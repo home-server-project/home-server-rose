@@ -12,7 +12,7 @@ dnf install -y /virtui-manager-rpm/virtui-manager-*.noarch.rpm
 # Declare them for bootc using the same sysusers model as uCore HCI.
 install -Dm0644 \
     /ctx/build_files/libvirt-workarounds.sysusers.conf \
-    /usr/lib/sysusers.d/home-server-alma-libvirt-workarounds.conf
+    /usr/lib/sysusers.d/home-server-rose-libvirt-workarounds.conf
 
 for unit in libvirtd.socket virtqemud.socket; do
     if systemctl cat "${unit}" >/dev/null 2>&1; then
