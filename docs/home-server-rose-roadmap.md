@@ -422,7 +422,7 @@ Clonezilla remains an additional backup option.
 ## 15. References
 
 - Universal Blue uCore: https://github.com/ublue-os/ucore
-- Home Server uCore: https://github.com/home-server-project/home-server-ucore
+- Home Server Gina: https://github.com/home-server-project/home-server-gina
 - AlmaLinux bootc images: https://github.com/AlmaLinux/bootc-images
 
 ## 16. Short definition
