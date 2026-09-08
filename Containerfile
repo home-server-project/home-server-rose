@@ -11,7 +11,7 @@ ARG HOME_SERVER_ROSE_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-rose
 # -----------------------------------------------------------------------------
 FROM ${FEDORA_BUILDER_IMAGE} AS upside-builder
 ARG UPSIDE_TAG
-RUN mkdir -p /out/usr/share/home-server-alma/build-health \
+RUN mkdir -p /out/usr/share/home-server-rose/build-health \
     && if [ -n "${UPSIDE_TAG}" ] \
        && dnf install -y git make nodejs npm tar \
        && git clone --depth 1 --branch "${UPSIDE_TAG}" https://github.com/deviationist/cockpit-upside.git /src/upside \
@@ -20,16 +20,16 @@ RUN mkdir -p /out/usr/share/home-server-alma/build-health \
        && mkdir -p /out/usr/share/cockpit/upside \
        && cp -a dist/. /out/usr/share/cockpit/upside/ \
        && test -f /out/usr/share/cockpit/upside/manifest.json; then \
-           printf '%s\n' "${UPSIDE_TAG}" > /out/usr/share/home-server-alma/build-health/upside.version; \
+           printf '%s\n' "${UPSIDE_TAG}" > /out/usr/share/home-server-rose/build-health/upside.version; \
        else \
            echo 'UPSide failed to resolve or build; image is degraded but still operational.' \
-               > /out/usr/share/home-server-alma/build-health/upside.failed; \
+               > /out/usr/share/home-server-rose/build-health/upside.failed; \
        fi \
     && dnf clean all
 
 FROM ${FEDORA_BUILDER_IMAGE} AS superfile-builder
 ARG SUPERFILE_TAG
-RUN mkdir -p /out/usr/share/home-server-alma/build-health \
+RUN mkdir -p /out/usr/share/home-server-rose/build-health \
     && if [ -n "${SUPERFILE_TAG}" ] \
        && dnf install -y git golang \
        && git clone --depth 1 --branch "${SUPERFILE_TAG}" https://github.com/yorukot/superfile.git /src/superfile \
@@ -37,10 +37,10 @@ RUN mkdir -p /out/usr/share/home-server-alma/build-health \
        && bash ./build.sh \
        && install -Dm0755 ./bin/spf /out/usr/bin/spf \
        && install -Dm0644 ./LICENSE /out/usr/share/licenses/superfile/LICENSE; then \
-           printf '%s\n' "${SUPERFILE_TAG}" > /out/usr/share/home-server-alma/build-health/superfile.version; \
+           printf '%s\n' "${SUPERFILE_TAG}" > /out/usr/share/home-server-rose/build-health/superfile.version; \
        else \
            echo 'Superfile failed to resolve or build; image is degraded but still operational.' \
-               > /out/usr/share/home-server-alma/build-health/superfile.failed; \
+               > /out/usr/share/home-server-rose/build-health/superfile.failed; \
        fi \
     && dnf clean all
 
@@ -158,6 +158,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     IMAGE_REPOSITORY="${HOME_SERVER_ROSE_REPOSITORY}" \
     IMAGE_PRETTY_NAME="Home Server Rose 10" \
     IMAGE_VARIANT="Home Server Rose" \
+    IMAGE_VARIANT_ID="home-server-rose" \
     /ctx/build_files/finalize-image.sh
 
 RUN bootc container lint --fatal-warnings
@@ -184,6 +185,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     IMAGE_REPOSITORY="${HOME_SERVER_ROSE_HCI_REPOSITORY}" \
     IMAGE_PRETTY_NAME="Home Server Rose HCI 10" \
     IMAGE_VARIANT="Home Server Rose HCI" \
+    IMAGE_VARIANT_ID="home-server-rose-hci" \
     /ctx/build_files/finalize-image.sh
 
 RUN bootc container lint --fatal-warnings

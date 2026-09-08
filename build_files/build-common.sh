@@ -10,7 +10,7 @@ source /ctx/build_files/software.env
 : "${MERGERFS_SHA256:?MERGERFS_SHA256 must be set}"
 
 cp -avf /ctx/system_files/. /
-chmod 0440 /etc/sudoers.d/90-home-server-alma-passwordless-wheel
+chmod 0440 /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 
 if ! dnf repolist --enabled | grep -Eiq '(^|[[:space:]])crb([[:space:]]|$)'; then
     echo "ERROR: AlmaLinux CRB repository is not enabled."
@@ -22,10 +22,10 @@ dnf install -y epel-release curl
 read -r -a critical_packages <<< "${HOME_SERVER_CRITICAL_PACKAGES}"
 dnf install -y "${critical_packages[@]}"
 
-install -d -m0755 /usr/share/home-server-alma/build-health
+install -d -m0755 /usr/share/home-server-rose/build-health
 install_optional_package() {
     local package="$1"
-    local marker="/usr/share/home-server-alma/build-health/${package}.failed"
+    local marker="/usr/share/home-server-rose/build-health/${package}.failed"
     if dnf install -y "${package}"; then
         rm -f "${marker}"
     else
@@ -54,10 +54,10 @@ if curl -fsSL \
     if dnf --enablerepo=tailscale-stable install -y "${TAILSCALE_PACKAGE}"; then
         systemctl disable tailscaled.service 2>/dev/null || true
     else
-        echo 'Optional Tailscale package failed to install.' > /usr/share/home-server-alma/build-health/tailscale.failed
+        echo 'Optional Tailscale package failed to install.' > /usr/share/home-server-rose/build-health/tailscale.failed
     fi
 else
-    echo 'Optional Tailscale repository failed to resolve.' > /usr/share/home-server-alma/build-health/tailscale.failed
+    echo 'Optional Tailscale repository failed to resolve.' > /usr/share/home-server-rose/build-health/tailscale.failed
 fi
 
 cat > /etc/yum.repos.d/netbird.repo <<'REPO'
@@ -72,7 +72,7 @@ REPO
 if dnf --setopt=tsflags=noscripts --enablerepo=netbird install -y "${NETBIRD_PACKAGE}"; then
     systemctl disable netbird.service 2>/dev/null || true
 else
-    echo 'Optional NetBird package failed to install.' > /usr/share/home-server-alma/build-health/netbird.failed
+    echo 'Optional NetBird package failed to install.' > /usr/share/home-server-rose/build-health/netbird.failed
 fi
 
 for unit in nut-server.service nut-monitor.service nut-driver@.service; do
@@ -84,21 +84,23 @@ systemctl disable cockpit.socket cockpit.service 2>/dev/null || true
 # Stage bootc updates automatically but never let the generic upstream update
 # units reboot a home server without administrator control.
 systemctl mask bootc-fetch-apply-updates.timer bootc-fetch-apply-updates.service
-systemctl enable home-server-alma-update.timer
+systemctl enable home-server-rose-update.timer
 
-install -d -m0755 /usr/share/doc/home-server-alma
-cp -avf /ctx/docs/. /usr/share/doc/home-server-alma/
+install -d -m0755 /usr/share/doc/home-server-rose
+cp -avf /ctx/docs/. /usr/share/doc/home-server-rose/
 
-install -d -m0755 /usr/share/home-server-alma/quadlets
-cp -avf /ctx/quadlets/. /usr/share/home-server-alma/quadlets/
+install -d -m0755 /usr/share/home-server-rose/quadlets
+cp -avf /ctx/quadlets/. /usr/share/home-server-rose/quadlets/
 
-install -d -m0755 /usr/libexec/home-server-alma/health
+install -d -m0755 /usr/libexec/home-server-rose/health
 install -m0755 /ctx/build_files/validate/critical-common.sh \
-    /usr/libexec/home-server-alma/health/critical-common
+    /usr/libexec/home-server-rose/health/critical-common
 install -m0755 /ctx/build_files/validate/critical-hci.sh \
-    /usr/libexec/home-server-alma/health/critical-hci
+    /usr/libexec/home-server-rose/health/critical-hci
 install -m0755 /ctx/build_files/validate/optional.sh \
-    /usr/libexec/home-server-alma/health/optional
+    /usr/libexec/home-server-rose/health/optional
+install -m0755 /ctx/build_files/validate/identity.sh \
+    /usr/libexec/home-server-rose/health/identity
 
 systemctl enable NetworkManager.service 2>/dev/null || true
 systemctl enable systemd-resolved.service
@@ -123,9 +125,9 @@ rpm -q \
     cockpit-podman \
     cockpit-storaged
 
-test -f /etc/sudoers.d/90-home-server-alma-passwordless-wheel
-test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-alma-passwordless-wheel)" = "440 root root"
-grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-alma-passwordless-wheel
+test -f /etc/sudoers.d/90-home-server-rose-passwordless-wheel
+test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-rose-passwordless-wheel)" = "440 root root"
+grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 visudo -cf /etc/sudoers
 
 test -f /etc/systemd/zram-generator.conf
@@ -135,15 +137,15 @@ test -f /etc/NetworkManager/conf.d/90-systemd-resolved.conf
 grep -Fqx '[main]' /etc/NetworkManager/conf.d/90-systemd-resolved.conf
 grep -Fqx 'dns=systemd-resolved' /etc/NetworkManager/conf.d/90-systemd-resolved.conf
 
-test -f /usr/lib/tmpfiles.d/home-server-alma-resolved.conf
+test -f /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
 grep -Fqx 'L+ /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf' \
-    /usr/lib/tmpfiles.d/home-server-alma-resolved.conf
+    /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
 
-test -f /usr/lib/systemd/system/home-server-alma-update.service
-test -f /usr/lib/systemd/system/home-server-alma-update.timer
+test -f /usr/lib/systemd/system/home-server-rose-update.service
+test -f /usr/lib/systemd/system/home-server-rose-update.timer
 test "$(systemctl is-enabled bootc-fetch-apply-updates.timer)" = "masked"
 test "$(systemctl is-enabled bootc-fetch-apply-updates.service)" = "masked"
-test "$(systemctl is-enabled home-server-alma-update.timer)" = "enabled"
+test "$(systemctl is-enabled home-server-rose-update.timer)" = "enabled"
 test "$(systemctl is-enabled systemd-resolved.service)" = "enabled"
 
 semodule -l >/dev/null

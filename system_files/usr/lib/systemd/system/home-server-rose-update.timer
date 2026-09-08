@@ -1,5 +1,5 @@
 [Unit]
-Description=Check and stage Home Server Alma bootc updates daily
+Description=Check and stage Home Server Rose bootc updates daily
 
 [Timer]
 OnCalendar=daily

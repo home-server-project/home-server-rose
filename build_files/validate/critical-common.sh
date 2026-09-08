@@ -6,6 +6,9 @@ pass() { printf 'PASS  %s\n' "$*"; }
 bootc container lint --fatal-warnings
 pass 'bootc container lint'
 
+/usr/libexec/home-server-rose/health/identity
+pass 'Home Server Rose identity contract'
+
 jq empty /etc/containers/policy.json
 semodule -l >/dev/null
 pass 'container trust JSON and SELinux policy'
@@ -15,9 +18,9 @@ test -f /etc/containers/registries.d/ghcr.io-home-server-project.yaml
 test -f /usr/share/containers/systemd/cockpit.container
 pass 'image trust and Cockpit Quadlet files'
 
-test -f /etc/sudoers.d/90-home-server-alma-passwordless-wheel
-test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-alma-passwordless-wheel)" = "440 root root"
-grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-alma-passwordless-wheel
+test -f /etc/sudoers.d/90-home-server-rose-passwordless-wheel
+test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-rose-passwordless-wheel)" = "440 root root"
+grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 visudo -cf /etc/sudoers >/dev/null
 pass 'passwordless wheel administration'
 
@@ -27,17 +30,17 @@ pass '4 GiB zram policy'
 
 test -f /etc/NetworkManager/conf.d/90-systemd-resolved.conf
 grep -Fqx 'dns=systemd-resolved' /etc/NetworkManager/conf.d/90-systemd-resolved.conf
-test -f /usr/lib/tmpfiles.d/home-server-alma-resolved.conf
+test -f /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
 grep -Fqx 'L+ /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf' \
-    /usr/lib/tmpfiles.d/home-server-alma-resolved.conf
+    /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
 test "$(systemctl is-enabled systemd-resolved.service)" = "enabled"
 pass 'systemd-resolved split-DNS integration'
 
-test -f /usr/lib/systemd/system/home-server-alma-update.service
-test -f /usr/lib/systemd/system/home-server-alma-update.timer
+test -f /usr/lib/systemd/system/home-server-rose-update.service
+test -f /usr/lib/systemd/system/home-server-rose-update.timer
 test "$(systemctl is-enabled bootc-fetch-apply-updates.timer)" = "masked"
 test "$(systemctl is-enabled bootc-fetch-apply-updates.service)" = "masked"
-test "$(systemctl is-enabled home-server-alma-update.timer)" = "enabled"
+test "$(systemctl is-enabled home-server-rose-update.timer)" = "enabled"
 pass 'staged bootc update policy without automatic reboot'
 
 test "$(stat -c '%a %U %G' /var/tmp)" = "1777 root root"

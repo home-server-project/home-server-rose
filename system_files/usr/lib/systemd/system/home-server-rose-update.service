@@ -1,5 +1,5 @@
 [Unit]
-Description=Stage Home Server Alma bootc update
+Description=Stage Home Server Rose bootc update
 Wants=network-online.target
 After=network-online.target
 
