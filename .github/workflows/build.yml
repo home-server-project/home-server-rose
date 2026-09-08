@@ -4,11 +4,14 @@ name: Build signed Home Server Rose images
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'THIRD_PARTY_NOTICES.md'
   push:
     branches: [main]
     paths-ignore:
       - '**/README.md'
       - 'docs/**'
+      - 'THIRD_PARTY_NOTICES.md'
   workflow_dispatch:
   schedule:
     - cron: '20 5 * * 6'
