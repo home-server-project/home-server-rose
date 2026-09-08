@@ -33,11 +33,11 @@ done
 check_file 'UPSide Cockpit extension' /usr/share/cockpit/upside/manifest.json
 check_file 'Superfile license' /usr/share/licenses/superfile/LICENSE
 
-if [[ -d /usr/share/home-server-alma/build-health ]]; then
+if [[ -d /usr/share/home-server-rose/build-health ]]; then
     while IFS= read -r marker; do
         [[ -n "${marker}" ]] || continue
         warn "build marker: $(basename "${marker}")"
-    done < <(find /usr/share/home-server-alma/build-health -maxdepth 1 -type f -name '*.failed' -print | sort)
+    done < <(find /usr/share/home-server-rose/build-health -maxdepth 1 -type f -name '*.failed' -print | sort)
 fi
 
 if (( degraded )); then
