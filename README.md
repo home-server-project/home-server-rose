@@ -57,14 +57,12 @@ The repository builds two image variants in parallel.
 | Home Server Rose | `ghcr.io/home-server-project/home-server-rose:10` | Full home-server host without virtualization stack |
 | Home Server Rose HCI | `ghcr.io/home-server-project/home-server-rose-hci:10` | Same host plus KVM/QEMU/libvirt and VM-management tooling |
 
-The stable channel is rebuilt weekly on Saturday.
+### Release channels
 
-The testing channel follows the `testing` branch and is rebuilt daily:
-
-```text
-ghcr.io/home-server-project/home-server-rose:testing
-ghcr.io/home-server-project/home-server-rose-hci:testing
-```
+| Channel | Moving tag | Source branch | Scheduled rebuild |
+|---|---|---|---|
+| Stable | `:10` | `main` | Weekly on Saturday |
+| Testing | `:testing` | `testing` | Daily |
 
 Testing receives Home Server Rose changes and refreshed AlmaLinux/external-project updates earlier. Stable and testing use the same critical health checks and image-signing process.
 
