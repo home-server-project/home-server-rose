@@ -1,5 +1,5 @@
 ---
-name: Build signed Home Server Alma images
+name: Build signed Home Server Rose images
 
 on:
   pull_request:
@@ -87,11 +87,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image_name: home-server-alma
-            target: home-server-alma
+          - image_name: home-server-rose
+            target: home-server-rose
             validation_mode: base
-          - image_name: home-server-alma-hci
-            target: home-server-alma-hci
+          - image_name: home-server-rose-hci
+            target: home-server-rose-hci
             validation_mode: hci
 
     permissions:
@@ -211,8 +211,8 @@ jobs:
             --build-arg "VIRTUI_MANAGER_TAG=${{ needs.resolve_external.outputs.virtui_tag }}" \
             --build-arg "MERGERFS_URL=${{ needs.resolve_external.outputs.mergerfs_url }}" \
             --build-arg "MERGERFS_SHA256=${{ needs.resolve_external.outputs.mergerfs_sha256 }}" \
-            --build-arg "HOME_SERVER_ALMA_REPOSITORY=${IMAGE_REGISTRY}/home-server-alma" \
-            --build-arg "HOME_SERVER_ALMA_HCI_REPOSITORY=${IMAGE_REGISTRY}/home-server-alma-hci" \
+            --build-arg "HOME_SERVER_ROSE_REPOSITORY=${IMAGE_REGISTRY}/home-server-rose" \
+            --build-arg "HOME_SERVER_ROSE_HCI_REPOSITORY=${IMAGE_REGISTRY}/home-server-rose-hci" \
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --tag "${IMAGE_NAME}:unrechunked" \
@@ -421,31 +421,31 @@ jobs:
           build_date="${{ needs.resolve_external.outputs.build_date }}"
           release_tag="${CURRENT_TAG}-${build_date}-${short_sha}"
 
-          normal_image="${registry}/home-server-alma:${release_tag}"
-          hci_image="${registry}/home-server-alma-hci:${release_tag}"
+          normal_image="${registry}/home-server-rose:${release_tag}"
+          hci_image="${registry}/home-server-rose-hci:${release_tag}"
           normal_digest="$(skopeo inspect --format '{{.Digest}}' "docker://${normal_image}")"
           hci_digest="$(skopeo inspect --format '{{.Digest}}' "docker://${hci_image}")"
           [[ "${normal_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "${hci_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
 
           release_date="${build_date:0:4}-${build_date:4:2}-${build_date:6:2}"
-          release_title="Home Server Alma 10 - ${release_date}"
+          release_title="Home Server Rose 10 - ${release_date}"
 
           cat > /tmp/release-notes.md <<EOF_NOTES
           > [!CAUTION]
-          > Home Server Alma is still in development. These images are intended for VM testing, not production or a real home server yet.
+          > Home Server Rose is still in development. These images are intended for VM testing, not production or a real home server yet.
 
-          ## Home Server Alma 10
+          ## Home Server Rose 10
 
           Both images passed their critical release-health contract. Optional tools may be reported as degraded in the corresponding Actions build summary without blocking an otherwise healthy OS image.
 
-          ### Home Server Alma
-          Current: \`${registry}/home-server-alma:${CURRENT_TAG}\`
+          ### Home Server Rose
+          Current: \`${registry}/home-server-rose:${CURRENT_TAG}\`
           Immutable: \`${normal_image}\`
           Digest: \`${normal_digest}\`
 
-          ### Home Server Alma HCI
-          Current: \`${registry}/home-server-alma-hci:${CURRENT_TAG}\`
+          ### Home Server Rose HCI
+          Current: \`${registry}/home-server-rose-hci:${CURRENT_TAG}\`
           Immutable: \`${hci_image}\`
           Digest: \`${hci_digest}\`
 

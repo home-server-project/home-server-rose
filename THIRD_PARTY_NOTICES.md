@@ -1,6 +1,6 @@
 # Third-party notices
 
-Home Server Alma is licensed under Apache-2.0. Software installed into the image retains its own
+Home Server Rose is licensed under Apache-2.0. Software installed into the image retains its own
 upstream license.
 
 ## Universal Blue uCore
@@ -30,7 +30,7 @@ Built in an isolated builder stage. The upstream license is copied into the imag
 
 https://github.com/aginies/virtui-manager
 
-Home Server Alma HCI packages VirtUI Manager locally while preserving its upstream GPL-3.0-or-later
+Home Server Rose HCI packages VirtUI Manager locally while preserving its upstream GPL-3.0-or-later
 license. Its private Python dependency directory avoids replacing AlmaLinux system Python packages.
 
 ## mergerfs

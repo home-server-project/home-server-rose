@@ -1,5 +1,5 @@
 ---
-name: Build signed Home Server Alma testing images
+name: Build signed Home Server Rose testing images
 
 on:
   push:
@@ -94,11 +94,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image_name: home-server-alma
-            target: home-server-alma
+          - image_name: home-server-rose
+            target: home-server-rose
             validation_mode: base
-          - image_name: home-server-alma-hci
-            target: home-server-alma-hci
+          - image_name: home-server-rose-hci
+            target: home-server-rose-hci
             validation_mode: hci
 
     permissions:
@@ -235,8 +235,8 @@ jobs:
             --build-arg "VIRTUI_MANAGER_TAG=${{ needs.resolve_external.outputs.virtui_tag }}" \
             --build-arg "MERGERFS_URL=${{ needs.resolve_external.outputs.mergerfs_url }}" \
             --build-arg "MERGERFS_SHA256=${{ needs.resolve_external.outputs.mergerfs_sha256 }}" \
-            --build-arg "HOME_SERVER_ALMA_REPOSITORY=${IMAGE_REGISTRY}/home-server-alma" \
-            --build-arg "HOME_SERVER_ALMA_HCI_REPOSITORY=${IMAGE_REGISTRY}/home-server-alma-hci" \
+            --build-arg "HOME_SERVER_ROSE_REPOSITORY=${IMAGE_REGISTRY}/home-server-rose" \
+            --build-arg "HOME_SERVER_ROSE_HCI_REPOSITORY=${IMAGE_REGISTRY}/home-server-rose-hci" \
             --label "org.opencontainers.image.revision=${SOURCE_SHA}" \
             --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --tag "${IMAGE_NAME}:unrechunked" \

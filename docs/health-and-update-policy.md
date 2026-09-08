@@ -1,10 +1,10 @@
 # Image Health and Update Policy
 
-This document defines what may block a Home Server Alma image release and how external software is updated.
+This document defines what may block a Home Server Rose image release and how external software is updated.
 
 ## Latest by default
 
-Home Server Alma follows current stable upstream software on every rebuild.
+Home Server Rose follows current stable upstream software on every rebuild.
 
 For external projects that are not installed directly from Alma/EPEL repositories:
 

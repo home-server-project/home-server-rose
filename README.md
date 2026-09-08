@@ -1,32 +1,32 @@
-# Home Server Alma
+# Home Server Rose
 
-[![stable](https://github.com/home-server-project/home-server-alma/actions/workflows/build.yml/badge.svg)](https://github.com/home-server-project/home-server-alma/actions/workflows/build.yml)
-[![testing](https://github.com/home-server-project/home-server-alma/actions/workflows/build-testing.yml/badge.svg)](https://github.com/home-server-project/home-server-alma/actions/workflows/build-testing.yml)
+[![stable](https://github.com/home-server-project/home-server-rose/actions/workflows/build.yml/badge.svg)](https://github.com/home-server-project/home-server-rose/actions/workflows/build.yml)
+[![testing](https://github.com/home-server-project/home-server-rose/actions/workflows/build-testing.yml/badge.svg)](https://github.com/home-server-project/home-server-rose/actions/workflows/build-testing.yml)
 
 > [!CAUTION]
 > **This project is in active development. Do not use these images on a production or real home server yet.**
 >
 > VM testing is welcome. Bare-metal and production-readiness testing will come later.
 
-Home Server Alma is an opinionated AlmaLinux 10 **bootc** server image built from AlmaLinux's
-**minimal-plus** content tier.
+Home Server Rose is an independent Home Server Project **bootc** server image derived from AlmaLinux 10
+**minimal-plus** content.
 
 The repository builds two image variants in parallel:
 
-- `home-server-alma`
-- `home-server-alma-hci`
+- `home-server-rose`
+- `home-server-rose-hci`
 
 The stable channel is rebuilt weekly on Saturday:
 
-- `ghcr.io/home-server-project/home-server-alma:10`
-- `ghcr.io/home-server-project/home-server-alma-hci:10`
+- `ghcr.io/home-server-project/home-server-rose:10`
+- `ghcr.io/home-server-project/home-server-rose-hci:10`
 
 The testing channel is rebuilt daily and follows the `testing` branch:
 
-- `ghcr.io/home-server-project/home-server-alma:testing`
-- `ghcr.io/home-server-project/home-server-alma-hci:testing`
+- `ghcr.io/home-server-project/home-server-rose:testing`
+- `ghcr.io/home-server-project/home-server-rose-hci:testing`
 
-The testing channel is intended for earlier exposure to current Home Server Alma changes and refreshed
+The testing channel is intended for earlier exposure to current Home Server Rose changes and refreshed
 upstream AlmaLinux and external-project updates. Stable and testing use the same critical health checks
 and image-signing process.
 
@@ -34,7 +34,7 @@ Both images contain the same full Home Server feature set: Podman + Quadlets, To
 integration, storage/NAS tools, NUT + UPSide, Tailscale, NetBird, WireGuard tools, Intel/AMD
 hardware, and practical terminal administration tools.
 
-`home-server-alma-hci` adds only the virtualization stack:
+`home-server-rose-hci` adds only the virtualization stack:
 
 - KVM/QEMU/libvirt
 - Cockpit Machines
@@ -50,7 +50,7 @@ The system uses a fixed **4 GiB zram swap device** and does not require a disk s
 
 ## Administrative access
 
-Home Server Alma follows the passwordless administrator pattern used by Fedora CoreOS/uCore. Users
+Home Server Rose follows the passwordless administrator pattern used by Fedora CoreOS/uCore. Users
 in AlmaLinux's standard `wheel` group can use `sudo` without an additional password prompt. This is
 intended for trusted administrator accounts on an appliance-style home server.
 
@@ -60,7 +60,7 @@ Current goal: build both signed images, validate them in VMs, then proceed to co
 testing. The repository should not be considered production-ready until that testing is complete.
 
 Architecture and feature decisions are tracked in
-[`docs/home-server-alma-roadmap.md`](docs/home-server-alma-roadmap.md).
+[`docs/home-server-rose-roadmap.md`](docs/home-server-rose-roadmap.md).
 
 Release health and dependency-update behavior are defined in
 [`docs/health-and-update-policy.md`](docs/health-and-update-policy.md).
@@ -93,6 +93,11 @@ testing-YYYYMMDD-<git-sha>
 Published image digests are signed with Cosign. A GitHub Release is created only for the stable
 channel after **both** image builds succeed and matching immutable tags are available. Daily testing
 builds do not create GitHub Releases.
+
+## Upstream
+
+Home Server Rose is derived from AlmaLinux OS 10 and is independent of the AlmaLinux OS Foundation.
+See [`UPSTREAM.md`](UPSTREAM.md) for upstream attribution and project relationship details.
 
 ## License
 

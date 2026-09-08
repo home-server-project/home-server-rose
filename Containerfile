@@ -2,8 +2,8 @@ ARG ALMA_REPOS_IMAGE=quay.io/almalinuxorg/10-base:10
 ARG BOOTC_IMAGECTL_IMAGE=quay.io/centos-bootc/centos-bootc:stream10
 ARG ALMA_BUILDER_IMAGE=quay.io/almalinuxorg/10-kitten-base:10-kitten
 ARG FEDORA_BUILDER_IMAGE=registry.fedoraproject.org/fedora:44
-ARG HOME_SERVER_ALMA_REPOSITORY=ghcr.io/home-server-project/home-server-alma
-ARG HOME_SERVER_ALMA_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-alma-hci
+ARG HOME_SERVER_ROSE_REPOSITORY=ghcr.io/home-server-project/home-server-rose
+ARG HOME_SERVER_ROSE_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-rose-hci
 
 # -----------------------------------------------------------------------------
 # Optional shared-tool builders first, so the bootc rootfs is composed immediately
@@ -143,21 +143,21 @@ STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]
 
 # -----------------------------------------------------------------------------
-# Standard Home Server Alma image
+# Standard Home Server Rose image
 # -----------------------------------------------------------------------------
-FROM home-server-common AS home-server-alma
-ARG HOME_SERVER_ALMA_REPOSITORY
+FROM home-server-common AS home-server-rose
+ARG HOME_SERVER_ROSE_REPOSITORY
 
-LABEL org.opencontainers.image.title="Home Server Alma" \
+LABEL org.opencontainers.image.title="Home Server Rose" \
       org.opencontainers.image.description="AlmaLinux 10 minimal-plus bootc home-server image" \
-      org.opencontainers.image.source="https://github.com/home-server-project/home-server-alma" \
-      io.home-server-project.variant="home-server-alma"
+      org.opencontainers.image.source="https://github.com/home-server-project/home-server-rose" \
+      io.home-server-project.variant="home-server-rose"
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    IMAGE_REPOSITORY="${HOME_SERVER_ALMA_REPOSITORY}" \
-    IMAGE_PRETTY_NAME="Home Server Alma 10" \
-    IMAGE_VARIANT="Home Server Alma" \
+    IMAGE_REPOSITORY="${HOME_SERVER_ROSE_REPOSITORY}" \
+    IMAGE_PRETTY_NAME="Home Server Rose 10" \
+    IMAGE_VARIANT="Home Server Rose" \
     /ctx/build_files/finalize-image.sh
 
 RUN bootc container lint --fatal-warnings
@@ -165,13 +165,13 @@ RUN bootc container lint --fatal-warnings
 # -----------------------------------------------------------------------------
 # HCI: exact same common layer plus virtualization
 # -----------------------------------------------------------------------------
-FROM home-server-common AS home-server-alma-hci
-ARG HOME_SERVER_ALMA_HCI_REPOSITORY
+FROM home-server-common AS home-server-rose-hci
+ARG HOME_SERVER_ROSE_HCI_REPOSITORY
 
-LABEL org.opencontainers.image.title="Home Server Alma HCI" \
-      org.opencontainers.image.description="Home Server Alma plus KVM/QEMU/libvirt virtualization" \
-      org.opencontainers.image.source="https://github.com/home-server-project/home-server-alma" \
-      io.home-server-project.variant="home-server-alma-hci"
+LABEL org.opencontainers.image.title="Home Server Rose HCI" \
+      org.opencontainers.image.description="Home Server Rose plus KVM/QEMU/libvirt virtualization" \
+      org.opencontainers.image.source="https://github.com/home-server-project/home-server-rose" \
+      io.home-server-project.variant="home-server-rose-hci"
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=virtui-manager-builder,source=/out,target=/virtui-manager-rpm \
@@ -181,9 +181,9 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    IMAGE_REPOSITORY="${HOME_SERVER_ALMA_HCI_REPOSITORY}" \
-    IMAGE_PRETTY_NAME="Home Server Alma HCI 10" \
-    IMAGE_VARIANT="Home Server Alma HCI" \
+    IMAGE_REPOSITORY="${HOME_SERVER_ROSE_HCI_REPOSITORY}" \
+    IMAGE_PRETTY_NAME="Home Server Rose HCI 10" \
+    IMAGE_VARIANT="Home Server Rose HCI" \
     /ctx/build_files/finalize-image.sh
 
 RUN bootc container lint --fatal-warnings

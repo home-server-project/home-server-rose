@@ -1,9 +1,9 @@
-# Home Server Alma — Architecture and Feature Roadmap
+# Home Server Rose — Architecture and Feature Roadmap
 
 **Status:** Implementation in development  
 **Date:** 2026-09-04  
-**Repository:** https://github.com/home-server-project/home-server-alma  
-**Images:** `home-server-alma` and `home-server-alma-hci`
+**Repository:** https://github.com/home-server-project/home-server-rose  
+**Images:** `home-server-rose` and `home-server-rose-hci`
 
 > This is the durable implementation reference for the project. Scope changes continue to follow the normal proposal -> greenlight -> execute workflow.
 
@@ -15,7 +15,7 @@ Build a boring, understandable AlmaLinux 10 bootc home-server operating system f
 AlmaLinux 10 minimal-plus
           |
           v
- Home Server Alma
+ Home Server Rose
           |
           | + KVM/QEMU/libvirt
           | + cockpit-machines
@@ -23,10 +23,10 @@ AlmaLinux 10 minimal-plus
           | + VirtUI Manager
           | + direct VM dependencies
           v
- Home Server Alma HCI
+ Home Server Rose HCI
 ```
 
-The HCI image is exactly **Home Server Alma + virtualization**. It is not a separate fuller server edition.
+The HCI image is exactly **Home Server Rose + virtualization**. It is not a separate fuller server edition.
 
 Everything useful to a normal home server belongs on **both** images. Only virtualization and tools that directly manage virtual machines belong only on HCI.
 
@@ -210,7 +210,7 @@ VirtUI Manager is packaged as a local RPM with its Python/Textual runtime isolat
 
 The builder follows the current stable VirtUI tag and the Textual requirement declared by that VirtUI release. Build-only Setuptools is upgraded to a compatible `>=77` so current SPDX metadata can be parsed; that builder tool does not enter the final image.
 
-Do not carry uBlue's Fedora-specific `ublue-os-libvirt-workarounds` package unless Alma testing proves an equivalent workaround is genuinely required. Alma's current libvirt packaging does require the equivalent sysusers declarations for `libvirt` and `libvirtdbus`; Home Server Alma HCI carries those declarations directly rather than importing the uBlue package.
+Do not carry uBlue's Fedora-specific `ublue-os-libvirt-workarounds` package unless Alma testing proves an equivalent workaround is genuinely required. Alma's current libvirt packaging does require the equivalent sysusers declarations for `libvirt` and `libvirtdbus`; Home Server Rose HCI carries those declarations directly rather than importing the uBlue package.
 
 ## 7. Deliberately excluded
 
@@ -395,7 +395,7 @@ Installer/builder work belongs under the Home Server Project as a separate reusa
 
 Expected later workflow:
 
-1. choose Home Server Alma or HCI
+1. choose Home Server Rose or HCI
 2. build installer ISO
 3. write USB
 4. disconnect disks that must not be touched
@@ -410,8 +410,8 @@ Do not replace the current uCore server immediately.
 Preferred future trial:
 
 1. keep the known-good uCore OS SSD untouched
-2. install Home Server Alma HCI to a second SSD
-3. boot Alma from that SSD
+2. install Home Server Rose HCI to a second SSD
+3. boot Rose from that SSD
 4. leave media/family/VM data disks intact
 5. restore machine-specific host config and Quadlets
 6. validate workloads over time
@@ -427,8 +427,8 @@ Clonezilla remains an additional backup option.
 
 ## 16. Short definition
 
-**Home Server Alma** is an AlmaLinux 10 minimal-plus bootc image for self-hosted servers with Podman Quadlets, Cockpit, storage/NAS tooling, broad hardware support, container-first Intel/AMD media acceleration, UPS integration, VPN tooling and practical terminal administration tools.
+**Home Server Rose** is an AlmaLinux 10 minimal-plus bootc image for self-hosted servers with Podman Quadlets, Cockpit, storage/NAS tooling, broad hardware support, container-first Intel/AMD media acceleration, UPS integration, VPN tooling and practical terminal administration tools.
 
-**Home Server Alma HCI** is that exact same image plus KVM/QEMU/libvirt, Cockpit Machines, virsh, virt-install, VirtUI Manager and direct virtualization dependencies.
+**Home Server Rose HCI** is that exact same image plus KVM/QEMU/libvirt, Cockpit Machines, virsh, virt-install, VirtUI Manager and direct virtualization dependencies.
 
 The objective is a **boring, understandable and recoverable home-server host** on a slower-moving enterprise-Linux base, with applications deployed reproducibly as Podman Quadlets.
