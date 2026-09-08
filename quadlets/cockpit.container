@@ -1,8 +1,8 @@
-# Home Server Alma system Quadlet for Cockpit's containerized web service.
+# Home Server Rose system Quadlet for Cockpit's containerized web service.
 # Host-side Cockpit bridge/pages are native packages; only cockpit-ws is containerized.
 
 [Unit]
-Description=Cockpit web console for Home Server Alma
+Description=Cockpit web console for Home Server Rose
 Wants=network-online.target
 After=network-online.target sshd.service
 
