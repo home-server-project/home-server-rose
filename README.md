@@ -8,8 +8,8 @@
 >
 > VM testing is welcome. Bare-metal and production-readiness testing will come later.
 
-Home Server Rose is an independent Home Server Project **bootc** server image derived from AlmaLinux 10
-**minimal-plus** content.
+Home Server Rose is an independent Home Server Project **bootc** server image built on AlmaLinux OS 10
+**minimal-plus**, with a focused Home Server tooling and configuration layer added on top.
 
 The repository builds two image variants in parallel:
 
@@ -96,7 +96,7 @@ builds do not create GitHub Releases.
 
 ## Upstream
 
-Home Server Rose is derived from AlmaLinux OS 10 and is independent of the AlmaLinux OS Foundation.
+Home Server Rose is built on AlmaLinux OS 10 minimal-plus and is independent of the AlmaLinux OS Foundation.
 See [`UPSTREAM.md`](UPSTREAM.md) for upstream attribution and project relationship details.
 
 ## License

@@ -1,6 +1,6 @@
 # Upstream Attribution
 
-Home Server Rose is an independent Home Server Project bootc image derived from AlmaLinux OS content and other upstream software.
+Home Server Rose is an independent Home Server Project bootc image built on AlmaLinux OS 10 minimal-plus content, with Home Server Project tooling and configuration added on top.
 
 Primary upstream foundation:
 
