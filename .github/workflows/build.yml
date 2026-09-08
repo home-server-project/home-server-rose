@@ -261,7 +261,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo podman run --rm --privileged --device /dev/fuse \
-            --entrypoint /usr/libexec/home-server-alma/health/critical-common \
+            --entrypoint /usr/libexec/home-server-rose/health/critical-common \
             "${IMAGE_NAME}:test"
 
       - name: Critical HCI health
@@ -270,7 +270,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo podman run --rm \
-            --entrypoint /usr/libexec/home-server-alma/health/critical-hci \
+            --entrypoint /usr/libexec/home-server-rose/health/critical-hci \
             "${IMAGE_NAME}:test"
 
       - name: Confirm base image has no HCI host stack
@@ -290,7 +290,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo podman run --rm \
-            --entrypoint /usr/libexec/home-server-alma/health/optional \
+            --entrypoint /usr/libexec/home-server-rose/health/optional \
             "${IMAGE_NAME}:test" | tee /tmp/optional-health.txt
           {
             echo '### Optional feature health'
