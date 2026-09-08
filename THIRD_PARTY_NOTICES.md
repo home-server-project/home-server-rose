@@ -37,4 +37,5 @@ license. Its private Python dependency directory avoids replacing AlmaLinux syst
 
 https://github.com/trapexit/mergerfs
 
-The image installs the upstream EL10 RPM using a pinned release and SHA-256 checksum.
+The image follows the latest stable upstream EL10 RPM by default and verifies the upstream-published
+SHA-256 digest. A version pin is used only as a temporary regression workaround.
