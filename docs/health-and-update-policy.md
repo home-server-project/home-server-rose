@@ -2,23 +2,17 @@
 
 This document defines what may block a Home Server Rose image release and how external software is updated.
 
-## Latest by default
+## Update sources
 
-Home Server Rose follows current stable upstream software on every rebuild.
+AlmaLinux and EPEL packages follow the current enabled build repositories on every rebuild.
 
-For external projects that are not installed directly from Alma/EPEL repositories:
+mergerfs follows the latest stable upstream GitHub release and its EL10 x86_64 RPM. Rose verifies the SHA-256 digest published with the selected release asset before installation. `build_files/software.env` keeps an empty mergerfs emergency pin that is used only after a demonstrated regression.
 
-- mergerfs: resolve the latest stable GitHub release and its EL10 x86_64 RPM
-- UPSide: resolve the latest stable tag
-- Superfile: resolve the latest stable tag
-- VirtUI Manager: resolve the latest stable tag
-- VirtUI's private Textual dependency: follow the requirement declared by the selected VirtUI release
+UPSide, Superfile, and VirtUI Manager are not built from upstream source in this repository. They are consumed from the verified `:stable` artifacts published by [Home Server Packages](https://github.com/home-server-project/home-server-packages).
 
-Normal operation does **not** pin these versions in the repository.
+Each Rose image build resolves those moving stable package artifacts to exact immutable digests before composition. Home Server Packages owns their upstream release tracking, exact source commits, package recipes, dependency locks, license handling, and Fedora/AlmaLinux package validation.
 
-`build_files/software.env` contains empty emergency pin variables. A pin is used only after an upstream regression is demonstrated and should be removed when the upstream issue is resolved.
-
-For mergerfs, the release is dynamic but integrity verification remains strict: CI reads the SHA-256 digest published with the selected GitHub release asset and verifies the downloaded EL10 RPM before installation.
+UPSide and Superfile are required by both Rose variants. VirtUI Manager is required only by Home Server Rose HCI. Failure to resolve or install one of the required central package artifacts blocks the affected image build.
 
 ## Critical health contract
 
@@ -36,6 +30,8 @@ Both images require:
 - NFS and Samba core tooling
 - Intel compute runtime plus Intel/AMD GPU firmware needed by the host device layer
 - mergerfs package plus a real FUSE mount/read/write/unmount smoke test
+- UPSide RPM plus its Cockpit manifest
+- Superfile RPM plus the `spf` command
 
 GPU media acceleration follows a container-first model. The host supplies kernel GPU drivers, firmware and `/dev/dri`; application containers such as Jellyfin supply their own VA-API/Quick Sync or Mesa userspace stack. CI therefore does not require host `libva`, `intel-media-driver` or Mesa VA-API packages. Real media acceleration remains a hardware acceptance test using actual containers.
 
@@ -48,8 +44,9 @@ HCI additionally requires:
 - QEMU/KVM
 - virt-install
 - swtpm and VM firmware
-- VirtUI Manager
-- working VirtUI Python imports and CLI entry points
+- VirtUI Manager RPM and CLI entry points
+
+VirtUI Manager package internals and its private Python dependency set are validated by Home Server Packages. Rose validates that the package is installed and that its user-facing commands are present as part of the HCI integration contract.
 
 CI does not claim that nested KVM itself works merely because GitHub Actions passes. Real VM creation/boot, bridge networking, UEFI and TPM remain VM/bare-metal acceptance tests.
 
@@ -58,7 +55,6 @@ CI does not claim that nested KVM itself works merely because GitHub Actions pas
 The following capabilities are intended to be present on both images but do not justify blocking an otherwise healthy OS/security rebuild by themselves:
 
 - NUT / UPS utilities
-- UPSide
 - Tailscale
 - NetBird
 - WireGuard tooling
@@ -66,7 +62,6 @@ The following capabilities are intended to be present on both images but do not 
 - PowerTOP
 - btop
 - Micro
-- Superfile
 - fastfetch
 - tmux
 - jq/rsync/pv and similar administration utilities
@@ -81,7 +76,7 @@ Degraded does not mean ignored. It means the image remains operational and may s
 The pipeline is:
 
 ```text
-resolve current dependencies
+resolve mergerfs + exact package artifact digests
         |
         v
 build both images in parallel
@@ -89,7 +84,7 @@ build both images in parallel
         v
 critical common health
         |
-        +---- base: confirm HCI stack absent
+        +---- base: confirm HCI stack and VirtUI Manager absent
         |
         +---- HCI: critical virtualization health
         |
