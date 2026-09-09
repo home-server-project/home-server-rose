@@ -39,6 +39,13 @@ for package in "${optional_packages[@]}"; do
     install_optional_package "${package}"
 done
 
+# Home Server Packages owns source tracking, package builds, and cross-distro
+# validation for these utilities. Rose consumes the exact RPM artifacts selected
+# by the workflow for this image build.
+dnf install -y \
+    /upside-rpm/cockpit-upside-*.noarch.rpm \
+    /superfile-rpm/superfile-*.x86_64.rpm
+
 # mergerfs always follows the latest stable upstream EL10 RPM unless an emergency pin
 # is configured. The workflow resolves the exact asset and its upstream-published digest.
 mergerfs_rpm="/tmp/mergerfs.rpm"
@@ -108,7 +115,7 @@ systemctl enable firewalld.service 2>/dev/null || true
 systemctl enable sshd.service 2>/dev/null || true
 
 # Cheap build-time checks. Functional release gates run against the completed image in CI.
-for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge; do
+for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge spf; do
     command -v "${cmd}"
 done
 
@@ -123,7 +130,11 @@ rpm -q \
     cockpit-system \
     cockpit-files \
     cockpit-podman \
-    cockpit-storaged
+    cockpit-storaged \
+    cockpit-upside \
+    superfile
+
+test -f /usr/share/cockpit/upside/manifest.json
 
 test -f /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-rose-passwordless-wheel)" = "440 root root"
