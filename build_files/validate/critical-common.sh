@@ -48,7 +48,7 @@ pass '/var/tmp early-boot mountpoint'
 
 for cmd in \
     sudo visudo podman toolbox nmcli resolvectl firewall-cmd sshd cockpit-bridge \
-    mergerfs btrfs mkfs.btrfs exportfs smbd testparm; do
+    mergerfs btrfs mkfs.btrfs exportfs smbd testparm spf; do
     command -v "${cmd}" >/dev/null
     pass "command ${cmd}"
 done
@@ -57,8 +57,12 @@ rpm -q \
     sudo systemd-resolved toolbox \
     btrfs-progs nfs-utils samba \
     intel-compute-runtime \
-    cockpit-system cockpit-files cockpit-podman cockpit-storaged >/dev/null
+    cockpit-system cockpit-files cockpit-podman cockpit-storaged \
+    cockpit-upside superfile >/dev/null
 pass 'critical package contract'
+
+test -f /usr/share/cockpit/upside/manifest.json
+pass 'UPSide Cockpit extension'
 
 # Functional Btrfs userspace smoke test on a disposable regular file.
 tmp="$(mktemp -d)"
