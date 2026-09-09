@@ -34,7 +34,7 @@ env:
 
 jobs:
   resolve_external:
-    name: Resolve mergerfs release
+    name: Resolve external inputs
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -43,6 +43,9 @@ jobs:
       mergerfs_tag: ${{ steps.external.outputs.mergerfs_tag }}
       mergerfs_url: ${{ steps.external.outputs.mergerfs_url }}
       mergerfs_sha256: ${{ steps.external.outputs.mergerfs_sha256 }}
+      upside_ref: ${{ steps.packages.outputs.upside_ref }}
+      superfile_ref: ${{ steps.packages.outputs.superfile_ref }}
+      virtui_ref: ${{ steps.packages.outputs.virtui_ref }}
 
     steps:
       - name: Checkout
@@ -65,6 +68,34 @@ jobs:
           ./build_files/resolve-external-software.sh /tmp/external.env
           cat /tmp/external.env >> "${GITHUB_OUTPUT}"
 
+      - name: Install package resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: Resolve Home Server Packages
+        id: packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          resolve_ref() {
+            local image="$1"
+            local digest
+            digest="$(skopeo inspect \
+              --override-arch amd64 \
+              --format '{{.Digest}}' \
+              "docker://${image}")"
+            [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+            printf '%s@%s' "${image%:*}" "${digest}"
+          }
+
+          echo "upside_ref=$(resolve_ref "${UPSIDE_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
+          echo "superfile_ref=$(resolve_ref "${SUPERFILE_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
+          echo "virtui_ref=$(resolve_ref "${VIRTUI_MANAGER_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
+
       - name: Resolution summary
         shell: bash
         run: |
@@ -73,8 +104,9 @@ jobs:
             echo
             echo "- Build date: ${{ steps.metadata.outputs.build_date }}"
             echo "- mergerfs: ${{ steps.external.outputs.mergerfs_tag }}"
-            echo
-            echo 'UPSide, Superfile, and VirtUI Manager are consumed from verified Home Server Packages stable artifacts and resolved to exact digests in each image build.'
+            echo "- UPSide: ${{ steps.packages.outputs.upside_ref }}"
+            echo "- Superfile: ${{ steps.packages.outputs.superfile_ref }}"
+            echo "- VirtUI Manager (HCI only): ${{ steps.packages.outputs.virtui_ref }}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   build:
@@ -117,7 +149,7 @@ jobs:
         with:
           cosign-release: 'v3.1.2'
 
-      - name: Resolve build inputs to digests
+      - name: Resolve base build inputs to digests
         id: inputs
         shell: bash
         run: |
@@ -137,14 +169,6 @@ jobs:
           echo "repos_ref=$(resolve_ref "${ALMA_REPOS_IMAGE}")" >> "${GITHUB_OUTPUT}"
           echo "imagectl_ref=$(resolve_ref "${BOOTC_IMAGECTL_IMAGE}")" >> "${GITHUB_OUTPUT}"
           echo "alma_builder_ref=$(resolve_ref "${ALMA_BUILDER_IMAGE}")" >> "${GITHUB_OUTPUT}"
-          echo "upside_ref=$(resolve_ref "${UPSIDE_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
-          echo "superfile_ref=$(resolve_ref "${SUPERFILE_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
-
-          if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
-            echo "virtui_ref=$(resolve_ref "${VIRTUI_MANAGER_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
-          else
-            echo 'virtui_ref=' >> "${GITHUB_OUTPUT}"
-          fi
 
       - name: Pre-pull resolved build inputs
         shell: bash
@@ -152,9 +176,9 @@ jobs:
           ALMA_REPOS_REF: ${{ steps.inputs.outputs.repos_ref }}
           BOOTC_IMAGECTL_REF: ${{ steps.inputs.outputs.imagectl_ref }}
           ALMA_BUILDER_REF: ${{ steps.inputs.outputs.alma_builder_ref }}
-          UPSIDE_REF: ${{ steps.inputs.outputs.upside_ref }}
-          SUPERFILE_REF: ${{ steps.inputs.outputs.superfile_ref }}
-          VIRTUI_MANAGER_REF: ${{ steps.inputs.outputs.virtui_ref }}
+          UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
+          SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
+          VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
         run: |
           set -euo pipefail
 
@@ -179,7 +203,7 @@ jobs:
           pull_with_retry "${ALMA_BUILDER_REF}"
           pull_with_retry "${UPSIDE_REF}"
           pull_with_retry "${SUPERFILE_REF}"
-          if [[ -n "${VIRTUI_MANAGER_REF}" ]]; then
+          if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
             pull_with_retry "${VIRTUI_MANAGER_REF}"
           fi
 
@@ -204,9 +228,9 @@ jobs:
           ALMA_REPOS_REF: ${{ steps.inputs.outputs.repos_ref }}
           BOOTC_IMAGECTL_REF: ${{ steps.inputs.outputs.imagectl_ref }}
           ALMA_BUILDER_REF: ${{ steps.inputs.outputs.alma_builder_ref }}
-          UPSIDE_REF: ${{ steps.inputs.outputs.upside_ref }}
-          SUPERFILE_REF: ${{ steps.inputs.outputs.superfile_ref }}
-          VIRTUI_MANAGER_REF: ${{ steps.inputs.outputs.virtui_ref }}
+          UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
+          SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
+          VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
         run: |
           set -euo pipefail
 
@@ -214,7 +238,7 @@ jobs:
             --build-arg "UPSIDE_PACKAGE_IMAGE=${UPSIDE_REF}"
             --build-arg "SUPERFILE_PACKAGE_IMAGE=${SUPERFILE_REF}"
           )
-          if [[ -n "${VIRTUI_MANAGER_REF}" ]]; then
+          if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
             package_args+=(--build-arg "VIRTUI_MANAGER_PACKAGE_IMAGE=${VIRTUI_MANAGER_REF}")
           fi
 
@@ -392,9 +416,9 @@ jobs:
         env:
           RECHUNK_LAYERS: ${{ steps.rechunk.outputs.layers }}
           DIGEST: ${{ steps.push.outputs.digest }}
-          UPSIDE_REF: ${{ steps.inputs.outputs.upside_ref }}
-          SUPERFILE_REF: ${{ steps.inputs.outputs.superfile_ref }}
-          VIRTUI_MANAGER_REF: ${{ steps.inputs.outputs.virtui_ref }}
+          UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
+          SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
+          VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
         run: |
           {
             echo "## ${{ matrix.image_name }}"
@@ -402,8 +426,8 @@ jobs:
             echo "- Target: ${{ matrix.target }}"
             echo "- UPSide package: ${UPSIDE_REF:-unknown}"
             echo "- Superfile package: ${SUPERFILE_REF:-unknown}"
-            if [[ -n "${VIRTUI_MANAGER_REF}" ]]; then
-              echo "- VirtUI Manager package: ${VIRTUI_MANAGER_REF}"
+            if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
+              echo "- VirtUI Manager package: ${VIRTUI_MANAGER_REF:-unknown}"
             fi
             echo "- Rechunked layers: ${RECHUNK_LAYERS:-unknown} / OCI max ${OCI_LAYER_LIMIT} (RPM chunk target ${RECHUNK_MAX_LAYERS})"
             echo "- Moving tag: ${IMAGE_REPOSITORY:-not-published}:${CURRENT_TAG}"
