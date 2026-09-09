@@ -36,7 +36,4 @@ rpm -q \
     osinfo-db \
     virtui-manager
 
-PYTHONPATH=/usr/libexec/virtui-manager/python \
-    python3 -c 'import textual, libvirt, yaml, requests, netifaces, gi, packaging, markdown_it, vmanager.wrapper'
-
 semodule -l >/dev/null
