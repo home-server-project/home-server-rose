@@ -80,6 +80,8 @@ Rose has a broader built-in home-server layer than Gina, so the main README grou
 | Hardware | Intel/AMD firmware and GPU support, fwupd, sensors, common USB/PCI utilities |
 | HCI only | KVM/QEMU, libvirt, Cockpit Machines, `virsh`, `virt-install`, VirtUI Manager, UEFI/TPM VM support |
 
+Third-party package details are maintained in [Home Server Packages](https://github.com/home-server-project/home-server-packages).
+
 Both variants use the same general Home Server feature layer. HCI adds only the virtualization stack and tools that directly manage virtual machines.
 
 Applications such as Jellyfin, Vaultwarden, databases, media automation, monitoring stacks and reverse proxies belong in Podman Quadlets rather than being baked into the host image.
@@ -106,9 +108,7 @@ Release health and dependency-update behavior are defined in [`docs/health-and-u
 
 ## Updates
 
-AlmaLinux/EPEL/RPM packages follow the current enabled build repositories on every rebuild. External projects such as mergerfs, UPSide, Superfile and VirtUI Manager follow their latest stable upstream release by default.
-
-Version pins are emergency regression overrides, not routine maintenance.
+AlmaLinux/EPEL/RPM packages follow the current enabled build repositories on every rebuild. mergerfs follows its latest stable upstream EL10 release. UPSide, Superfile and VirtUI Manager are consumed from verified [Home Server Packages](https://github.com/home-server-project/home-server-packages) stable artifacts.
 
 Critical server functionality is tested before publication. In particular, mergerfs must complete a real FUSE mount/read/write/unmount smoke test, and the HCI image must pass its virtualization-management health checks.
 
@@ -174,6 +174,7 @@ Kernel and core AlmaLinux package defects remain upstream AlmaLinux issues. Home
 - [AlmaLinux bootc-images](https://github.com/AlmaLinux/bootc-images)
 - [bootc](https://github.com/bootc-dev/bootc)
 - [Home Server Gina](https://github.com/home-server-project/home-server-gina)
+- [Home Server Packages](https://github.com/home-server-project/home-server-packages)
 - [Home Server Project](https://github.com/home-server-project)
 
 </details>
