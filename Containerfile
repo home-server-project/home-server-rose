@@ -34,11 +34,10 @@ RUN /usr/libexec/bootc-base-imagectl build-rootfs \
     /target-rootfs
 
 # -----------------------------------------------------------------------------
-# Verified third-party package artifacts
+# Verified shared third-party package artifacts
 # -----------------------------------------------------------------------------
 FROM ${UPSIDE_PACKAGE_IMAGE} AS upside-package
 FROM ${SUPERFILE_PACKAGE_IMAGE} AS superfile-package
-FROM ${VIRTUI_MANAGER_PACKAGE_IMAGE} AS virtui-manager-package
 
 # -----------------------------------------------------------------------------
 # Build context exposed to bind mounts
@@ -100,6 +99,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build_files/finalize-image.sh
 
 RUN bootc container lint --fatal-warnings
+
+# -----------------------------------------------------------------------------
+# HCI-only verified package artifact
+# -----------------------------------------------------------------------------
+FROM ${VIRTUI_MANAGER_PACKAGE_IMAGE} AS virtui-manager-package
 
 # -----------------------------------------------------------------------------
 # HCI: exact same common layer plus virtualization
