@@ -1,7 +1,7 @@
 # Home Server Rose — Architecture and Feature Roadmap
 
 **Status:** Implementation in development  
-**Date:** 2026-09-04  
+**Date:** 2026-09-09  
 **Repository:** https://github.com/home-server-project/home-server-rose  
 **Images:** `home-server-rose` and `home-server-rose-hci`
 
@@ -177,7 +177,7 @@ Intended on both images:
 - PowerTOP
 - NUT utilities
 
-UPSide and Superfile use isolated builders so Node/Go build toolchains do not remain in the OS image.
+UPSide and Superfile are consumed as verified RPM artifacts from [Home Server Packages](https://github.com/home-server-project/home-server-packages). Rose does not build or version-manage them from upstream source.
 
 ## 5. zram / swap policy
 
@@ -206,9 +206,7 @@ HCI receives the exact same Home Server layer plus:
 - VirtUI Manager
 - direct noVNC/websockify/console dependencies where required
 
-VirtUI Manager is packaged as a local RPM with its Python/Textual runtime isolated under `/usr/libexec/virtui-manager`; it must not replace Alma system Python packages.
-
-The builder follows the current stable VirtUI tag and the Textual requirement declared by that VirtUI release. Build-only Setuptools is upgraded to a compatible `>=77` so current SPDX metadata can be parsed; that builder tool does not enter the final image.
+VirtUI Manager is consumed only by Home Server Rose HCI from the verified `virtui-manager:stable` artifact published by [Home Server Packages](https://github.com/home-server-project/home-server-packages). Rose no longer carries a local VirtUI RPM spec, source build, or private dependency-resolution logic.
 
 Do not carry uBlue's Fedora-specific `ublue-os-libvirt-workarounds` package unless Alma testing proves an equivalent workaround is genuinely required. Alma's current libvirt packaging does require the equivalent sysusers declarations for `libvirt` and `libvirtdbus`; Home Server Rose HCI carries those declarations directly rather than importing the uBlue package.
 
@@ -237,25 +235,28 @@ Preferred source order:
 1. AlmaLinux BaseOS/AppStream
 2. AlmaLinux CRB where required
 3. EPEL 10
-4. official upstream EL10 release assets
-5. narrowly scoped third-party repositories only when needed
+4. verified Home Server Packages artifacts for project-maintained third-party RPMs
+5. official upstream EL10 release assets where no central package exists
+6. narrowly scoped third-party repositories only when needed
 
-Current external sources include Tailscale, NetBird, mergerfs upstream releases, and upstream source builds for UPSide, Superfile and VirtUI Manager. RPM Fusion is not part of the image dependency chain.
+Current external sources include Tailscale, NetBird, mergerfs upstream releases, and Home Server Packages artifacts for UPSide, Superfile and VirtUI Manager. RPM Fusion is not part of the image dependency chain.
 
 ### Latest by default
 
 The normal maintenance model is:
 
 ```text
-latest stable upstream
-        -> build
-        -> health validation
+upstream release
+        -> Home Server Packages build/test/promote
+        -> verified :stable artifact
+        -> Rose resolves exact artifact digest
+        -> image build + health validation
         -> publish if critical health passes
 ```
 
-Alma/EPEL packages update naturally with each rebuild. mergerfs, UPSide, Superfile and VirtUI Manager also resolve current stable upstream releases on each rebuild.
+Alma/EPEL packages update naturally with each rebuild. mergerfs resolves the current stable upstream EL10 release on each rebuild. UPSide, Superfile and VirtUI Manager follow the verified stable channels maintained by Home Server Packages.
 
-Repository version pins are **not** routine maintenance. `software.env` contains empty emergency override variables. A specific version is pinned only after a demonstrated upstream regression and removed when the regression is resolved.
+Rose does not keep routine version pins for those three packages. Their exact upstream versions, commits and dependency locks belong to Home Server Packages. Only mergerfs retains a local emergency regression pin because Rose still consumes that upstream release asset directly.
 
 ## 9. Health contract and release gates
 
@@ -275,6 +276,8 @@ A failure blocks publication:
 - Intel compute runtime and Intel/AMD GPU firmware host contract
 - **mergerfs real FUSE mount/read/write/unmount test**
 - required Cockpit host components
+- UPSide RPM and Cockpit manifest
+- Superfile RPM and `spf` command
 
 The host media contract deliberately stops at kernel/device/firmware capability. Container-specific VA-API or Quick Sync userspace is validated later with real workloads rather than being required in the host image.
 
@@ -286,13 +289,15 @@ The mergerfs check is intentionally release-critical because storage-pool failur
 - cockpit-machines
 - virsh / virt-install
 - swtpm / VM firmware
-- VirtUI Manager imports and entry points
+- VirtUI Manager RPM and CLI entry points
+
+Home Server Packages validates VirtUI's package internals and private Python dependency closure. Rose validates only the HCI integration contract.
 
 ### Optional/degraded
 
-Failures in non-runtime tools such as UPSide, Superfile, Micro, btop, PowerTOP, NUT UI/tooling, Tailscale/NetBird and similar helpers are clearly reported as degraded but do not automatically block an otherwise healthy OS/security rebuild.
+Failures in non-runtime tools such as Micro, btop, PowerTOP, NUT UI/tooling, Tailscale/NetBird and similar helpers are clearly reported as degraded but do not automatically block an otherwise healthy OS/security rebuild.
 
-The normal image must explicitly fail if the KVM/libvirt HCI host stack leaks into it.
+The normal image must explicitly fail if the KVM/libvirt HCI host stack or VirtUI Manager leaks into it.
 
 ## 10. Supply chain and CI
 
@@ -300,8 +305,10 @@ The repository builds **both images in parallel**.
 
 Required behavior:
 
-- resolve current external software once per workflow so both images use the same dependency snapshot
-- resolve base/builder container references to digests
+- resolve mergerfs once per workflow so both images use the same release snapshot
+- resolve base and package artifact references to exact digests
+- UPSide and Superfile are common verified package inputs
+- VirtUI Manager is resolved and consumed only for HCI
 - shared minimal-plus/common feature layer
 - HCI-only virtualization delta
 - functional critical health checks before push
@@ -310,7 +317,7 @@ Required behavior:
 - verify signatures after publication
 - repository-specific image trust for bootc updates
 - no credentials or site-specific data in layers
-- no build toolchains in final images when isolated builders can avoid them
+- no third-party source-build toolchains in Rose for packages already produced by Home Server Packages
 
 Published tags:
 
@@ -423,6 +430,7 @@ Clonezilla remains an additional backup option.
 
 - Universal Blue uCore: https://github.com/ublue-os/ucore
 - Home Server Gina: https://github.com/home-server-project/home-server-gina
+- Home Server Packages: https://github.com/home-server-project/home-server-packages
 - AlmaLinux bootc images: https://github.com/AlmaLinux/bootc-images
 
 ## 16. Short definition
