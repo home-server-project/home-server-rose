@@ -14,24 +14,21 @@ https://github.com/ublue-os/ucore
 uCore is distributed under Apache-2.0. The rule has been carried over because it is useful generic
 home-server hardware enablement; comments were adjusted for this project.
 
-## UPSide
+## Home Server Packages
 
-https://github.com/deviationist/cockpit-upside
+UPSide, Superfile, and VirtUI Manager are consumed as verified RPM artifacts from:
 
-Built in an isolated builder stage. Build dependencies do not remain in the final image.
+https://github.com/home-server-project/home-server-packages
 
-## Superfile
+That repository owns their upstream source tracking, package builds, validation, licenses, and
+published package artifacts. Home Server Rose resolves the stable package artifacts to exact digests
+for each image build. VirtUI Manager is included only in Home Server Rose HCI.
 
-https://github.com/yorukot/superfile
+Upstream projects:
 
-Built in an isolated builder stage. The upstream license is copied into the image.
-
-## VirtUI Manager
-
-https://github.com/aginies/virtui-manager
-
-Home Server Rose HCI packages VirtUI Manager locally while preserving its upstream GPL-3.0-or-later
-license. Its private Python dependency directory avoids replacing AlmaLinux system Python packages.
+- UPSide: https://github.com/deviationist/cockpit-upside
+- Superfile: https://github.com/yorukot/superfile
+- VirtUI Manager: https://github.com/aginies/virtui-manager
 
 ## mergerfs
 
