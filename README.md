@@ -12,21 +12,21 @@
 >
 > VM testing is welcome. Bare-metal and production-readiness testing will come later.
 
-Home Server Rose is an independent Home Server Project **bootc** server image built on [AlmaLinux OS](https://almalinux.org/) 10 [minimal-plus](build_files/almalinux-10-minimal-plus.yaml), with a focused Home Server tooling and configuration layer added on top.
+Home Server Rose is an independent Home Server Project **bootc** server image built on [Home Server Base 10](https://github.com/home-server-project/home-server-base-10), which provides the AlmaLinux 10 Minimal Plus foundation, with a focused home-server tooling and configuration layer added on top.
 
 ## Upstream foundation
 
 We chose AlmaLinux deliberately. Its community-driven, long-term-stable Enterprise Linux foundation is a strong fit for the more conservative side of the Home Server Project, where predictable server behavior matters more than chasing the newest base packages.
 
-AlmaLinux provides the kernel, core operating-system packages and Enterprise Linux foundation. Home Server Project adds the bootc image composition, home-server tooling, configuration, health checks and release pipeline used by Rose.
+AlmaLinux provides the kernel, core operating-system packages and Enterprise Linux foundation. [Home Server Base 10](https://github.com/home-server-project/home-server-base-10) owns the shared Minimal Plus bootc composition and generic base behavior. Rose adds only the home-server-specific tooling, configuration, health checks and release pipeline.
 
-Rose also follows the work in the official [AlmaLinux bootc-images](https://github.com/AlmaLinux/bootc-images) project and uses the same broader bootc ecosystem.
+Rose therefore consumes Home Server Base 10 as its direct parent while retaining AlmaLinux 10 as the upstream operating-system provenance.
 
 ```text
 AlmaLinux OS 10
       |
       v
-minimal-plus bootc rootfs
+Home Server Base 10
       |
       v
 Home Server Rose
@@ -45,7 +45,7 @@ Prefer a Fedora CoreOS / Universal Blue uCore foundation with a **newer LTS kern
 
 Rose and Gina follow the same Home Server Project philosophy, but use different upstream foundations:
 
-- **Rose** — AlmaLinux OS 10 / Enterprise Linux foundation
+- **Rose** — Home Server Base 10 / AlmaLinux 10 Enterprise Linux foundation
 - **Gina** — Fedora CoreOS + Universal Blue uCore LTS foundation
 
 ## Images
@@ -64,7 +64,7 @@ The repository builds two image variants in parallel.
 | Stable | `:10` | `main` | Weekly on Saturday |
 | Testing | `:testing` | `testing` | Daily |
 
-Testing receives Home Server Rose changes and refreshed AlmaLinux/external-project updates earlier. Stable and testing use the same critical health checks and image-signing process.
+Testing receives Home Server Rose changes, refreshed Home Server Base builds and external-project updates earlier. Stable and testing use the same critical health checks and image-signing process.
 
 ## What is included
 
@@ -108,7 +108,7 @@ Release health and dependency-update behavior are defined in [`docs/health-and-u
 
 ## Updates
 
-AlmaLinux/EPEL/RPM packages follow the current enabled build repositories on every rebuild. mergerfs follows its latest stable upstream EL10 release. UPSide, Superfile and VirtUI Manager are consumed from verified [Home Server Packages](https://github.com/home-server-project/home-server-packages) stable artifacts.
+Home Server Base 10 supplies the AlmaLinux 10 Minimal Plus parent and its enabled base repositories. Rose installs its additional AlmaLinux/EPEL packages during each rebuild. mergerfs follows its latest stable upstream EL10 release. UPSide, Superfile and VirtUI Manager are consumed from verified [Home Server Packages](https://github.com/home-server-project/home-server-packages) stable artifacts.
 
 Critical server functionality is tested before publication. In particular, mergerfs must complete a real FUSE mount/read/write/unmount smoke test, and the HCI image must pass its virtualization-management health checks.
 
@@ -169,6 +169,7 @@ Kernel and core AlmaLinux package defects remain upstream AlmaLinux issues. Home
 <details>
 <summary><strong>Project and upstream links</strong></summary>
 
+- [Home Server Base 10](https://github.com/home-server-project/home-server-base-10)
 - [AlmaLinux OS](https://almalinux.org/)
 - [AlmaLinux Wiki](https://wiki.almalinux.org/)
 - [AlmaLinux bootc-images](https://github.com/AlmaLinux/bootc-images)
