@@ -4,8 +4,8 @@
 
 # Home Server Rose
 
-[![stable](https://github.com/home-server-project/home-server-rose/actions/workflows/build.yml/badge.svg)](https://github.com/home-server-project/home-server-rose/actions/workflows/build.yml)
-[![testing](https://github.com/home-server-project/home-server-rose/actions/workflows/build-testing.yml/badge.svg)](https://github.com/home-server-project/home-server-rose/actions/workflows/build-testing.yml)
+[![stable](https://img.shields.io/github/actions/workflow/status/home-server-project/home-server-rose/build.yml?branch=main&label=stable)](https://github.com/home-server-project/home-server-rose/actions/workflows/build.yml)
+[![testing](https://img.shields.io/github/actions/workflow/status/home-server-project/home-server-rose/build-testing.yml?branch=testing&label=testing)](https://github.com/home-server-project/home-server-rose/actions/workflows/build-testing.yml)
 
 > [!CAUTION]
 > **This project is in active development. Do not use these images on a production or real home server yet.**
@@ -128,7 +128,7 @@ Successful testing builds from `testing` publish both moving `:testing` tags and
 testing-YYYYMMDD-<git-sha>
 ```
 
-Published image digests are signed with Cosign. A GitHub Release is created only for the stable channel after **both** image builds succeed and matching immutable tags are available.
+Published image digests are signed with Cosign. Testing keeps the moving `:testing` tags plus recent immutable history; immutable `testing-*` image versions older than 45 days are cleaned automatically while at least seven recent builds are retained. A GitHub Release is created only for the stable channel after **both** image builds succeed and matching immutable tags are available.
 
 ## Issue policy
 
