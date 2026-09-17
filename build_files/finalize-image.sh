@@ -13,8 +13,8 @@ OS_RELEASE_ETC=/etc/os-release
 
 [[ -r "${OS_RELEASE_USR}" ]] || { echo "ERROR: ${OS_RELEASE_USR} is missing." >&2; exit 1; }
 
-# Capture the real upstream foundation before applying the downstream Rose identity.
-# These values remain available as Home Server Project extension fields after branding.
+# Capture the Home Server Base parent before applying the downstream Rose identity.
+# Home Server Base keeps the AlmaLinux provenance chain in its own namespaced fields.
 # shellcheck disable=SC1090
 source "${OS_RELEASE_USR}"
 BASE_ID="${ID:-}"
@@ -22,17 +22,56 @@ BASE_PRETTY_NAME="${PRETTY_NAME:-}"
 BASE_VERSION_ID="${VERSION_ID:-}"
 BASE_PLATFORM_ID="${PLATFORM_ID:-}"
 BASE_CPE_NAME="${CPE_NAME:-}"
+BASE_PROFILE="${HOME_SERVER_BASE_PROFILE:-}"
+BASE_CHANNEL="${HOME_SERVER_BASE_CHANNEL:-}"
+UPSTREAM_ID="${HOME_SERVER_BASE_UPSTREAM_ID:-}"
+UPSTREAM_PRETTY_NAME="${HOME_SERVER_BASE_UPSTREAM_PRETTY_NAME:-}"
+UPSTREAM_VERSION_ID="${HOME_SERVER_BASE_UPSTREAM_VERSION_ID:-}"
+UPSTREAM_PLATFORM_ID="${HOME_SERVER_BASE_UPSTREAM_PLATFORM_ID:-}"
+UPSTREAM_CPE_NAME="${HOME_SERVER_BASE_UPSTREAM_CPE_NAME:-}"
 
-[[ "${BASE_ID}" == "almalinux" ]] || {
-    echo "ERROR: expected AlmaLinux upstream ID before Rose branding, got '${BASE_ID}'." >&2
+[[ "${BASE_ID}" == "home-server-base" ]] || {
+    echo "ERROR: expected Home Server Base parent ID, got '${BASE_ID}'." >&2
+    exit 1
+}
+[[ "${BASE_PRETTY_NAME}" == "Home Server Base 10" ]] || {
+    echo "ERROR: expected Home Server Base 10 parent, got '${BASE_PRETTY_NAME}'." >&2
     exit 1
 }
 [[ "${BASE_VERSION_ID%%.*}" == "10" ]] || {
-    echo "ERROR: expected AlmaLinux major version 10, got '${BASE_VERSION_ID}'." >&2
+    echo "ERROR: expected Home Server Base major version 10, got '${BASE_VERSION_ID}'." >&2
     exit 1
 }
 [[ "${BASE_PLATFORM_ID}" == "platform:el10" ]] || {
     echo "ERROR: expected platform:el10, got '${BASE_PLATFORM_ID}'." >&2
+    exit 1
+}
+[[ "${BASE_CPE_NAME}" == "cpe:/o:home-server-project:home-server-base:10" ]] || {
+    echo "ERROR: unexpected Home Server Base CPE '${BASE_CPE_NAME}'." >&2
+    exit 1
+}
+[[ "${BASE_PROFILE}" == "almalinux-10-minimal-plus" ]] || {
+    echo "ERROR: unexpected Home Server Base profile '${BASE_PROFILE}'." >&2
+    exit 1
+}
+[[ "${BASE_CHANNEL}" == "stable" ]] || {
+    echo "ERROR: Rose must consume Home Server Base stable, got '${BASE_CHANNEL}'." >&2
+    exit 1
+}
+[[ "${UPSTREAM_ID}" == "almalinux" ]] || {
+    echo "ERROR: Home Server Base upstream ID is not AlmaLinux." >&2
+    exit 1
+}
+[[ "${UPSTREAM_VERSION_ID%%.*}" == "10" ]] || {
+    echo "ERROR: Home Server Base upstream VERSION_ID is not AlmaLinux 10." >&2
+    exit 1
+}
+[[ "${UPSTREAM_PLATFORM_ID}" == "platform:el10" ]] || {
+    echo "ERROR: Home Server Base upstream PLATFORM_ID is not platform:el10." >&2
+    exit 1
+}
+[[ "${UPSTREAM_CPE_NAME}" == cpe:/o:almalinux:* ]] || {
+    echo "ERROR: Home Server Base upstream CPE does not identify AlmaLinux." >&2
     exit 1
 }
 
@@ -56,8 +95,8 @@ osr_unset() {
     done
 }
 
-# Home Server Rose is the resulting image identity. AlmaLinux remains the
-# upstream package/kernel foundation and EL10 compatibility family.
+# Home Server Rose is the resulting image identity. Home Server Base is the
+# direct parent, while AlmaLinux remains the upstream package/kernel foundation.
 osr_set NAME "Home Server Rose"
 osr_set PRETTY_NAME "${IMAGE_PRETTY_NAME}"
 osr_set ID "home-server-rose"
@@ -75,14 +114,15 @@ osr_set VENDOR_NAME "Home Server Project"
 osr_set VENDOR_URL "https://github.com/home-server-project"
 osr_set CPE_NAME "cpe:/o:home-server-project:home-server-rose:10"
 
-# Preserve the exact upstream identity as namespaced metadata instead of
-# presenting the combined Rose image itself as AlmaLinux OS.
+# Preserve the direct Home Server Base parent identity. The inherited
+# HOME_SERVER_BASE_UPSTREAM_* fields retain the AlmaLinux provenance chain.
 osr_set HOME_SERVER_ROSE_BASE_ID "${BASE_ID}"
 osr_set HOME_SERVER_ROSE_BASE_PRETTY_NAME "${BASE_PRETTY_NAME}"
 osr_set HOME_SERVER_ROSE_BASE_VERSION_ID "${BASE_VERSION_ID}"
 osr_set HOME_SERVER_ROSE_BASE_PLATFORM_ID "${BASE_PLATFORM_ID}"
 osr_set HOME_SERVER_ROSE_BASE_CPE_NAME "${BASE_CPE_NAME}"
-osr_set HOME_SERVER_ROSE_BASE_PROFILE "almalinux-10-minimal-plus"
+osr_set HOME_SERVER_ROSE_BASE_PROFILE "${BASE_PROFILE}"
+osr_set HOME_SERVER_ROSE_BASE_CHANNEL "${BASE_CHANNEL}"
 
 # Upstream support/vendor extension fields describe AlmaLinux itself, not this
 # downstream combined image. The upstream values above retain provenance.
