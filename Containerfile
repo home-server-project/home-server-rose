@@ -31,6 +31,8 @@ ARG MERGERFS_SHA256
 LABEL containers.bootc=1 \
       ostree.bootable=1 \
       org.opencontainers.image.vendor="Home Server Project" \
+      io.home-server-project.base="home-server-base-10" \
+      io.home-server-project.base-channel="stable" \
       io.home-server-project.base-profile="almalinux-10-minimal-plus" \
       io.home-server-project.status="development"
 
