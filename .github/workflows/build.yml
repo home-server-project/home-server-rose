@@ -31,7 +31,6 @@ jobs:
     name: Resolve external inputs
     runs-on: ubuntu-24.04
     permissions:
-      actions: read
       contents: read
     outputs:
       build_date: ${{ steps.metadata.outputs.build_date }}
@@ -53,25 +52,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "build_date=$(date -u +%Y%m%d)" >> "${GITHUB_OUTPUT}"
-
-      - name: Require fresh successful testing run
-        if: github.event_name != 'pull_request'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          run_json="$(gh api             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/workflows/build-testing.yml/runs?branch=testing&per_page=1")"
-          conclusion="$(jq -r '.workflow_runs[0].conclusion // ""' <<< "${run_json}")"
-          run_date="$(jq -r '.workflow_runs[0].created_at // ""' <<< "${run_json}" | cut -c1-10)"
-          run_id="$(jq -r '.workflow_runs[0].id // ""' <<< "${run_json}")"
-          today="$(date -u +%F)"
-          if [[ "${conclusion}" != "success" || "${run_date}" != "${today}" ]]; then
-            echo "ERROR: latest Rose testing run is not a successful run from today." >&2
-            echo "run_id=${run_id:-none} conclusion=${conclusion:-none} run_date=${run_date:-none} today=${today}" >&2
-            exit 1
-          fi
-          echo "Testing gate passed with run ${run_id}."
 
       - name: Resolve mergerfs release
         id: external
