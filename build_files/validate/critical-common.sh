@@ -48,7 +48,7 @@ pass '/var/tmp early-boot mountpoint'
 
 for cmd in \
     sudo visudo podman toolbox nmcli resolvectl firewall-cmd sshd cockpit-bridge \
-    mergerfs btrfs mkfs.btrfs exportfs smbd testparm git file zstd; do
+    mergerfs btrfs mkfs.btrfs exportfs smbd testparm git file zstd gcc g++ make ps; do
     command -v "${cmd}" >/dev/null
     pass "command ${cmd}"
 done
@@ -58,7 +58,7 @@ rpm -q \
     btrfs-progs nfs-utils samba \
     intel-compute-runtime \
     cockpit-system cockpit-files cockpit-podman cockpit-storaged \
-    cockpit-upside file git zstd >/dev/null
+    cockpit-upside file git zstd gcc gcc-c++ make procps-ng >/dev/null
 pass 'critical package contract'
 
 test -f /usr/share/cockpit/upside/manifest.json
