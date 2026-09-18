@@ -65,14 +65,14 @@ Testing is the daily canary for the current Home Server Base and Rose package se
 | Area | Included |
 |---|---|
 | Containers | Podman, systemd Quadlets, Toolbx |
-| Administration | Cockpit host integration, Micro, Superfile, btop, fastfetch, tmux, jq, rsync, pv |
+| Administration | Cockpit host integration, Homebrew, tmux, jq, rsync, pv |
 | Storage / NAS | Btrfs tools, mergerfs, NFS, Samba, rclone, duperemove, SMART/NVMe/drive utilities |
 | Networking | NetworkManager, firewalld, Tailscale, NetBird, WireGuard tools, common network diagnostics |
 | UPS / power | NUT, UPSide, PowerTOP |
 | Hardware | Intel/AMD firmware and GPU support, fwupd, sensors, common USB/PCI utilities |
 | HCI only | KVM/QEMU, libvirt, Cockpit Machines, `virsh`, `virt-install`, VirtUI Manager, UEFI/TPM VM support |
 
-Third-party package details are maintained in [Home Server Packages](https://github.com/home-server-project/home-server-packages).
+UPSide and VirtUI Manager package details are maintained in [Home Server Packages](https://github.com/home-server-project/home-server-packages). Homebrew integration is supplied by [uBlue Brew](https://github.com/ublue-os/brew).
 
 Both variants use the same general Home Server feature layer. HCI adds only the virtualization stack and tools that directly manage virtual machines.
 
@@ -92,7 +92,7 @@ The system uses a fixed **4 GiB zram swap device** and does not require a disk s
 
 Home Server Base 10 supplies the AlmaLinux 10 Minimal Plus parent and shared base behavior. Rose installs its additional AlmaLinux/EPEL packages and Home Server tooling during each rebuild.
 
-mergerfs follows its latest stable upstream EL10 release. UPSide, Superfile and VirtUI Manager are consumed from verified [Home Server Packages](https://github.com/home-server-project/home-server-packages) stable artifacts.
+mergerfs follows its latest stable upstream EL10 release. UPSide and VirtUI Manager are consumed from verified [Home Server Packages](https://github.com/home-server-project/home-server-packages) stable artifacts. uBlue Brew is resolved from its current `:latest` image to an exact verified digest for each Rose build; Homebrew then updates itself normally through `brew update`.
 
 Critical server functionality is tested before publication. In particular:
 
@@ -147,6 +147,8 @@ Problems reproducible in the upstream AlmaLinux package, bootc component, Cockpi
 - [bootc](https://github.com/bootc-dev/bootc)
 - [Home Server Gina](https://github.com/home-server-project/home-server-gina)
 - [Home Server Packages](https://github.com/home-server-project/home-server-packages)
+- [uBlue Brew](https://github.com/ublue-os/brew)
+- [Homebrew](https://brew.sh/)
 - [Home Server Project](https://github.com/home-server-project)
 
 See [`UPSTREAM.md`](UPSTREAM.md) for detailed upstream attribution and relationship information.
