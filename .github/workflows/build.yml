@@ -333,7 +333,7 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         shell: bash
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -349,7 +349,7 @@ jobs:
 
       - name: Push image tags
         id: push
-        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         shell: bash
         run: |
           set -euo pipefail
@@ -369,7 +369,7 @@ jobs:
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Sign image digest
-        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         shell: bash
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
@@ -383,7 +383,7 @@ jobs:
             "${IMAGE_REPOSITORY}@${DIGEST}"
 
       - name: Verify published signature
-        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         shell: bash
         env:
           DIGEST: ${{ steps.push.outputs.digest }}
@@ -424,7 +424,7 @@ jobs:
   release:
     name: Publish GitHub release
     needs: [resolve_external, build]
-    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
 
     permissions:
@@ -512,9 +512,10 @@ jobs:
   cleanup:
     name: cleanup
     needs: release
-    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
     permissions:
+      contents: write
       packages: write
 
     steps:
@@ -528,4 +529,49 @@ jobs:
           older-than: 45 days
           keep-n-tagged: 7
           validate: true
+
+      - name: Remove expired GitHub Releases and tags
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          cutoff_epoch="$(date -u -d '45 days ago' +%s)"
+          keep_count=7
+
+          mapfile -t releases < <(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq '.[] |
+                    select(.draft == false) |
+                    select(.tag_name | test("^10-[0-9]{8}-[0-9a-f]{7}$")) |
+                    [.published_at, (.id | tostring), .tag_name] |
+                    @tsv' \
+              | sort -r
+          )
+
+          echo "Stable releases found: ${#releases[@]}"
+          echo "Keeping at least the newest ${keep_count}; only older releases beyond 45 days may be removed."
+
+          for i in "${!releases[@]}"; do
+            IFS=$'\t' read -r published_at release_id tag <<< "${releases[${i}]}"
+
+            if (( i < keep_count )); then
+              echo "KEEP newest: ${tag} (${published_at})"
+              continue
+            fi
+
+            published_epoch="$(date -u -d "${published_at}" +%s)"
+            if (( published_epoch >= cutoff_epoch )); then
+              echo "KEEP recent: ${tag} (${published_at})"
+              continue
+            fi
+
+            echo "DELETE expired release: ${tag} (${published_at})"
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${release_id}"
+
+            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}"
+            fi
+          done
 
