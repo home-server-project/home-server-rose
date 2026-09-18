@@ -42,7 +42,7 @@ check_enabled() {
 }
 
 for cmd in upsc nut-scanner pmlogger pminfo snmpget tailscale netbird fwupdmgr smartctl sensors nvme \
-           lsusb lspci ethtool powertop btop micro nano vim openssl lsof file unzip \
+           lsusb lspci ethtool powertop nano vim openssl lsof unzip \
            tmux jq rsync pv tcpdump dig traceroute nc iperf3 rclone; do
     check_cmd "${cmd}"
 done
