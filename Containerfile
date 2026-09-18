@@ -1,6 +1,6 @@
 ARG HOME_SERVER_BASE_IMAGE=ghcr.io/home-server-project/home-server-base-10:stable
 ARG UPSIDE_PACKAGE_IMAGE=ghcr.io/home-server-project/cockpit-upside:stable
-ARG SUPERFILE_PACKAGE_IMAGE=ghcr.io/home-server-project/superfile:stable
+ARG BREW_IMAGE=ghcr.io/ublue-os/brew:latest
 ARG VIRTUI_MANAGER_PACKAGE_IMAGE=ghcr.io/home-server-project/virtui-manager:stable
 ARG HOME_SERVER_ROSE_REPOSITORY=ghcr.io/home-server-project/home-server-rose
 ARG HOME_SERVER_ROSE_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-rose-hci
@@ -9,7 +9,7 @@ ARG HOME_SERVER_ROSE_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-rose
 # Verified shared third-party package artifacts
 # -----------------------------------------------------------------------------
 FROM ${UPSIDE_PACKAGE_IMAGE} AS upside-package
-FROM ${SUPERFILE_PACKAGE_IMAGE} AS superfile-package
+FROM ${BREW_IMAGE} AS brew-package
 
 # -----------------------------------------------------------------------------
 # Build context exposed to bind mounts
@@ -25,6 +25,8 @@ COPY cosign.pub /cosign.pub
 # Shared full Home Server feature layer
 # -----------------------------------------------------------------------------
 FROM ${HOME_SERVER_BASE_IMAGE} AS home-server-common
+COPY --from=brew-package /system_files /
+
 ARG MERGERFS_URL
 ARG MERGERFS_SHA256
 
@@ -38,7 +40,6 @@ LABEL containers.bootc=1 \
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=upside-package,source=/rpms,target=/upside-rpm \
-    --mount=type=bind,from=superfile-package,source=/rpms,target=/superfile-rpm \
     --mount=type=tmpfs,dst=/run \
     --mount=type=tmpfs,dst=/tmp \
     MERGERFS_URL="${MERGERFS_URL}" \
