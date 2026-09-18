@@ -16,7 +16,7 @@ home-server hardware enablement; comments were adjusted for this project.
 
 ## Home Server Packages
 
-UPSide, Superfile, and VirtUI Manager are consumed as verified RPM artifacts from:
+UPSide and VirtUI Manager are consumed as verified RPM artifacts from:
 
 https://github.com/home-server-project/home-server-packages
 
@@ -27,8 +27,21 @@ for each image build. VirtUI Manager is included only in Home Server Rose HCI.
 Upstream projects:
 
 - UPSide: https://github.com/deviationist/cockpit-upside
-- Superfile: https://github.com/yorukot/superfile
 - VirtUI Manager: https://github.com/aginies/virtui-manager
+
+## uBlue Brew and Homebrew
+
+Home Server Rose consumes the uBlue Brew bootc integration from:
+
+https://github.com/ublue-os/brew
+
+Each image build resolves the current uBlue Brew image to an exact digest and verifies it with
+uBlue's signing key before composition. The integration supplies the Homebrew bootstrap payload,
+systemd units, and shell integration for image-based systems.
+
+Homebrew itself is maintained upstream at:
+
+https://github.com/Homebrew/brew
 
 ## mergerfs
 
