@@ -23,7 +23,7 @@ env:
   OCI_LAYER_LIMIT: '128'
   HOME_SERVER_BASE_IMAGE: ghcr.io/home-server-project/home-server-base-10:stable
   UPSIDE_PACKAGE_IMAGE: ghcr.io/home-server-project/cockpit-upside:stable
-  SUPERFILE_PACKAGE_IMAGE: ghcr.io/home-server-project/superfile:stable
+  BREW_IMAGE: ghcr.io/ublue-os/brew:latest
   VIRTUI_MANAGER_PACKAGE_IMAGE: ghcr.io/home-server-project/virtui-manager:stable
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
       mergerfs_sha256: ${{ steps.external.outputs.mergerfs_sha256 }}
       base_ref: ${{ steps.base.outputs.base_ref }}
       upside_ref: ${{ steps.packages.outputs.upside_ref }}
-      superfile_ref: ${{ steps.packages.outputs.superfile_ref }}
+      brew_ref: ${{ steps.packages.outputs.brew_ref }}
       virtui_ref: ${{ steps.packages.outputs.virtui_ref }}
 
     steps:
@@ -94,7 +94,7 @@ jobs:
           echo "base_ref=${base_ref}" >> "${GITHUB_OUTPUT}"
           echo "Verified Home Server Base: ${base_ref}"
 
-      - name: Resolve Home Server Packages
+      - name: Resolve package and Brew inputs
         id: packages
         shell: bash
         run: |
@@ -112,7 +112,14 @@ jobs:
           }
 
           echo "upside_ref=$(resolve_ref "${UPSIDE_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
-          echo "superfile_ref=$(resolve_ref "${SUPERFILE_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
+
+          brew_ref="$(resolve_ref "${BREW_IMAGE}")"
+          cosign verify \
+            --new-bundle-format=false \
+            --key ublue-brew-cosign.pub \
+            "${brew_ref}" >/dev/null
+          echo "brew_ref=${brew_ref}" >> "${GITHUB_OUTPUT}"
+
           echo "virtui_ref=$(resolve_ref "${VIRTUI_MANAGER_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
 
       - name: Resolution summary
@@ -127,7 +134,7 @@ jobs:
             echo "- Home Server Base: ${{ steps.base.outputs.base_ref }}"
             echo "- mergerfs: ${{ steps.external.outputs.mergerfs_tag }}"
             echo "- UPSide: ${{ steps.packages.outputs.upside_ref }}"
-            echo "- Superfile: ${{ steps.packages.outputs.superfile_ref }}"
+            echo "- uBlue Brew: ${{ steps.packages.outputs.brew_ref }}"
             echo "- VirtUI Manager (HCI only): ${{ steps.packages.outputs.virtui_ref }}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -190,7 +197,7 @@ jobs:
         env:
           BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
-          SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
+          BREW_REF: ${{ needs.resolve_external.outputs.brew_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
         run: |
           set -euo pipefail
@@ -213,7 +220,7 @@ jobs:
 
           pull_with_retry "${BASE_REF}"
           pull_with_retry "${UPSIDE_REF}"
-          pull_with_retry "${SUPERFILE_REF}"
+          pull_with_retry "${BREW_REF}"
           if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
             pull_with_retry "${VIRTUI_MANAGER_REF}"
           fi
@@ -241,14 +248,14 @@ jobs:
           SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
           BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
-          SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
+          BREW_REF: ${{ needs.resolve_external.outputs.brew_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
         run: |
           set -euo pipefail
 
           package_args=(
             --build-arg "UPSIDE_PACKAGE_IMAGE=${UPSIDE_REF}"
-            --build-arg "SUPERFILE_PACKAGE_IMAGE=${SUPERFILE_REF}"
+            --build-arg "BREW_IMAGE=${BREW_REF}"
           )
           if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
             package_args+=(--build-arg "VIRTUI_MANAGER_PACKAGE_IMAGE=${VIRTUI_MANAGER_REF}")
@@ -425,7 +432,7 @@ jobs:
           RECHUNK_LAYERS: ${{ steps.rechunk.outputs.layers }}
           DIGEST: ${{ steps.push.outputs.digest }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
-          SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
+          BREW_REF: ${{ needs.resolve_external.outputs.brew_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
         run: |
           {
@@ -436,7 +443,7 @@ jobs:
             echo "- Target: ${{ matrix.target }}"
             echo "- Home Server Base: ${BASE_REF:-unknown}"
             echo "- UPSide package: ${UPSIDE_REF:-unknown}"
-            echo "- Superfile package: ${SUPERFILE_REF:-unknown}"
+            echo "- uBlue Brew image: ${BREW_REF:-unknown}"
             if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
               echo "- VirtUI Manager package: ${VIRTUI_MANAGER_REF:-unknown}"
             fi
