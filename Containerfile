@@ -1,37 +1,9 @@
-ARG ALMA_REPOS_IMAGE=quay.io/almalinuxorg/10-base:10
-ARG BOOTC_IMAGECTL_IMAGE=quay.io/centos-bootc/centos-bootc:stream10
-ARG ALMA_BUILDER_IMAGE=quay.io/almalinuxorg/10-kitten-base:10-kitten
+ARG HOME_SERVER_BASE_IMAGE=ghcr.io/home-server-project/home-server-base-10:stable
 ARG UPSIDE_PACKAGE_IMAGE=ghcr.io/home-server-project/cockpit-upside:stable
 ARG SUPERFILE_PACKAGE_IMAGE=ghcr.io/home-server-project/superfile:stable
 ARG VIRTUI_MANAGER_PACKAGE_IMAGE=ghcr.io/home-server-project/virtui-manager:stable
 ARG HOME_SERVER_ROSE_REPOSITORY=ghcr.io/home-server-project/home-server-rose
 ARG HOME_SERVER_ROSE_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-rose-hci
-
-# -----------------------------------------------------------------------------
-# AlmaLinux 10 minimal-plus bootc rootfs
-# -----------------------------------------------------------------------------
-FROM ${ALMA_REPOS_IMAGE} AS repos
-FROM ${BOOTC_IMAGECTL_IMAGE} AS imagectl
-FROM ${ALMA_BUILDER_IMAGE} AS rootfs-builder
-
-RUN dnf install -y podman bootc ostree rpm-ostree \
-    && dnf clean all
-
-COPY --from=imagectl /usr/share/doc/bootc-base-imagectl/ /usr/share/doc/bootc-base-imagectl/
-COPY --from=imagectl /usr/libexec/bootc-base-imagectl /usr/libexec/bootc-base-imagectl
-RUN chmod +x /usr/libexec/bootc-base-imagectl
-
-RUN rm -rf /etc/yum.repos.d/*
-COPY --from=repos /etc/yum.repos.d/*.repo /etc/yum.repos.d/
-COPY --from=repos /etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10 /etc/pki/rpm-gpg/
-
-COPY build_files/almalinux-10-minimal-plus.yaml \
-    /usr/share/doc/bootc-base-imagectl/manifests/almalinux-10-minimal-plus.yaml
-
-RUN /usr/libexec/bootc-base-imagectl build-rootfs \
-    --reinject \
-    --manifest=almalinux-10-minimal-plus \
-    /target-rootfs
 
 # -----------------------------------------------------------------------------
 # Verified shared third-party package artifacts
@@ -52,14 +24,15 @@ COPY cosign.pub /cosign.pub
 # -----------------------------------------------------------------------------
 # Shared full Home Server feature layer
 # -----------------------------------------------------------------------------
-FROM scratch AS home-server-common
+FROM ${HOME_SERVER_BASE_IMAGE} AS home-server-common
 ARG MERGERFS_URL
 ARG MERGERFS_SHA256
-COPY --from=rootfs-builder /target-rootfs/ /
 
 LABEL containers.bootc=1 \
       ostree.bootable=1 \
       org.opencontainers.image.vendor="Home Server Project" \
+      io.home-server-project.base="home-server-base-10" \
+      io.home-server-project.base-channel="stable" \
       io.home-server-project.base-profile="almalinux-10-minimal-plus" \
       io.home-server-project.status="development"
 
@@ -86,7 +59,7 @@ FROM home-server-common AS home-server-rose
 ARG HOME_SERVER_ROSE_REPOSITORY
 
 LABEL org.opencontainers.image.title="Home Server Rose" \
-      org.opencontainers.image.description="AlmaLinux 10 minimal-plus bootc home-server image" \
+      org.opencontainers.image.description="Home Server Base 10-derived bootc home-server image" \
       org.opencontainers.image.source="https://github.com/home-server-project/home-server-rose" \
       io.home-server-project.variant="home-server-rose"
 

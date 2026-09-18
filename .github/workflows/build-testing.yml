@@ -1,5 +1,5 @@
 ---
-name: Build signed Home Server Rose testing images
+name: testing
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
       - 'THIRD_PARTY_NOTICES.md'
   workflow_dispatch:
   schedule:
-    - cron: '40 6 * * *'
+    - cron: '30 14 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-testing
@@ -21,9 +21,7 @@ env:
   CURRENT_TAG: 'testing'
   RECHUNK_MAX_LAYERS: '127'
   OCI_LAYER_LIMIT: '128'
-  ALMA_REPOS_IMAGE: quay.io/almalinuxorg/10-base:10
-  BOOTC_IMAGECTL_IMAGE: quay.io/centos-bootc/centos-bootc:stream10
-  ALMA_BUILDER_IMAGE: quay.io/almalinuxorg/10-kitten-base:10-kitten
+  HOME_SERVER_BASE_IMAGE: ghcr.io/home-server-project/home-server-base-10:stable
   UPSIDE_PACKAGE_IMAGE: ghcr.io/home-server-project/cockpit-upside:stable
   SUPERFILE_PACKAGE_IMAGE: ghcr.io/home-server-project/superfile:stable
   VIRTUI_MANAGER_PACKAGE_IMAGE: ghcr.io/home-server-project/virtui-manager:stable
@@ -40,6 +38,7 @@ jobs:
       mergerfs_tag: ${{ steps.external.outputs.mergerfs_tag }}
       mergerfs_url: ${{ steps.external.outputs.mergerfs_url }}
       mergerfs_sha256: ${{ steps.external.outputs.mergerfs_sha256 }}
+      base_ref: ${{ steps.base.outputs.base_ref }}
       upside_ref: ${{ steps.packages.outputs.upside_ref }}
       superfile_ref: ${{ steps.packages.outputs.superfile_ref }}
       virtui_ref: ${{ steps.packages.outputs.virtui_ref }}
@@ -71,12 +70,29 @@ jobs:
           ./build_files/resolve-external-software.sh /tmp/external.env
           cat /tmp/external.env >> "${GITHUB_OUTPUT}"
 
-      - name: Install package resolver
+      - name: Install image resolver
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y skopeo
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: 'v3.1.2'
+
+      - name: Resolve and verify Home Server Base
+        id: base
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(skopeo inspect             --override-arch amd64             --format '{{.Digest}}'             "docker://${HOME_SERVER_BASE_IMAGE}")"
+          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          base_ref="${HOME_SERVER_BASE_IMAGE%:*}@${digest}"
+          cosign verify             --new-bundle-format=false             --key cosign.pub             "${base_ref}" >/dev/null
+          echo "base_ref=${base_ref}" >> "${GITHUB_OUTPUT}"
+          echo "Verified Home Server Base: ${base_ref}"
 
       - name: Resolve Home Server Packages
         id: packages
@@ -108,6 +124,7 @@ jobs:
             echo "- Source branch: testing"
             echo "- Source revision: ${{ steps.metadata.outputs.source_sha }}"
             echo "- Build date: ${{ steps.metadata.outputs.build_date }}"
+            echo "- Home Server Base: ${{ steps.base.outputs.base_ref }}"
             echo "- mergerfs: ${{ steps.external.outputs.mergerfs_tag }}"
             echo "- UPSide: ${{ steps.packages.outputs.upside_ref }}"
             echo "- Superfile: ${{ steps.packages.outputs.superfile_ref }}"
@@ -168,33 +185,10 @@ jobs:
         with:
           cosign-release: 'v3.1.2'
 
-      - name: Resolve base build inputs to digests
-        id: inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          resolve_ref() {
-            local image="$1"
-            local digest
-            digest="$(skopeo inspect \
-              --override-arch amd64 \
-              --format '{{.Digest}}' \
-              "docker://${image}")"
-            [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
-            printf '%s@%s' "${image%:*}" "${digest}"
-          }
-
-          echo "repos_ref=$(resolve_ref "${ALMA_REPOS_IMAGE}")" >> "${GITHUB_OUTPUT}"
-          echo "imagectl_ref=$(resolve_ref "${BOOTC_IMAGECTL_IMAGE}")" >> "${GITHUB_OUTPUT}"
-          echo "alma_builder_ref=$(resolve_ref "${ALMA_BUILDER_IMAGE}")" >> "${GITHUB_OUTPUT}"
-
       - name: Pre-pull resolved build inputs
         shell: bash
         env:
-          ALMA_REPOS_REF: ${{ steps.inputs.outputs.repos_ref }}
-          BOOTC_IMAGECTL_REF: ${{ steps.inputs.outputs.imagectl_ref }}
-          ALMA_BUILDER_REF: ${{ steps.inputs.outputs.alma_builder_ref }}
+          BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
           SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
@@ -217,9 +211,7 @@ jobs:
             return 1
           }
 
-          pull_with_retry "${ALMA_REPOS_REF}"
-          pull_with_retry "${BOOTC_IMAGECTL_REF}"
-          pull_with_retry "${ALMA_BUILDER_REF}"
+          pull_with_retry "${BASE_REF}"
           pull_with_retry "${UPSIDE_REF}"
           pull_with_retry "${SUPERFILE_REF}"
           if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
@@ -247,9 +239,7 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
-          ALMA_REPOS_REF: ${{ steps.inputs.outputs.repos_ref }}
-          BOOTC_IMAGECTL_REF: ${{ steps.inputs.outputs.imagectl_ref }}
-          ALMA_BUILDER_REF: ${{ steps.inputs.outputs.alma_builder_ref }}
+          BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
           SUPERFILE_REF: ${{ needs.resolve_external.outputs.superfile_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
@@ -270,9 +260,7 @@ jobs:
             --cap-add=all \
             --device /dev/fuse \
             --target "${{ matrix.target }}" \
-            --build-arg "ALMA_REPOS_IMAGE=${ALMA_REPOS_REF}" \
-            --build-arg "BOOTC_IMAGECTL_IMAGE=${BOOTC_IMAGECTL_REF}" \
-            --build-arg "ALMA_BUILDER_IMAGE=${ALMA_BUILDER_REF}" \
+            --build-arg "HOME_SERVER_BASE_IMAGE=${BASE_REF}" \
             "${package_args[@]}" \
             --build-arg "MERGERFS_URL=${{ needs.resolve_external.outputs.mergerfs_url }}" \
             --build-arg "MERGERFS_SHA256=${{ needs.resolve_external.outputs.mergerfs_sha256 }}" \
@@ -433,6 +421,7 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
+          BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
           RECHUNK_LAYERS: ${{ steps.rechunk.outputs.layers }}
           DIGEST: ${{ steps.push.outputs.digest }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
@@ -445,6 +434,7 @@ jobs:
             echo "- Source branch: testing"
             echo "- Source revision: ${SOURCE_SHA}"
             echo "- Target: ${{ matrix.target }}"
+            echo "- Home Server Base: ${BASE_REF:-unknown}"
             echo "- UPSide package: ${UPSIDE_REF:-unknown}"
             echo "- Superfile package: ${SUPERFILE_REF:-unknown}"
             if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
@@ -455,3 +445,23 @@ jobs:
             echo "- Immutable tag: ${IMAGE_REPOSITORY:-not-published}:${BUILD_TAG:-n/a}"
             echo "- Digest: ${DIGEST:-not-published}"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  cleanup:
+    name: cleanup
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+
+    steps:
+      - name: Remove expired testing images
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: home-server-rose,home-server-rose-hci
+          delete-tags: 'testing-*'
+          exclude-tags: 'testing,10,10-*'
+          older-than: 45 days
+          keep-n-tagged: 7
+          validate: true
+

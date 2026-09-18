@@ -4,7 +4,7 @@ This document defines what may block a Home Server Rose image release and how ex
 
 ## Update sources
 
-AlmaLinux and EPEL packages follow the current enabled build repositories on every rebuild.
+Home Server Rose consumes the moving `ghcr.io/home-server-project/home-server-base-10:stable` parent. CI resolves that parent to an exact digest and verifies its Home Server Project Cosign signature before composition. Home Server Base supplies the AlmaLinux 10 Minimal Plus foundation and enabled base repositories; Rose then installs its additional AlmaLinux/EPEL packages during the rebuild.
 
 mergerfs follows the latest stable upstream GitHub release and its EL10 x86_64 RPM. Rose verifies the SHA-256 digest published with the selected release asset before installation. `build_files/software.env` keeps an empty mergerfs emergency pin that is used only after a demonstrated regression.
 
@@ -76,6 +76,9 @@ Degraded does not mean ignored. It means the image remains operational and may s
 The pipeline is:
 
 ```text
+resolve + verify exact Home Server Base digest
+        |
+        v
 resolve mergerfs + exact package artifact digests
         |
         v
