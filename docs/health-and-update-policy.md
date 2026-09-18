@@ -8,11 +8,13 @@ Home Server Rose consumes the moving `ghcr.io/home-server-project/home-server-ba
 
 mergerfs follows the latest stable upstream GitHub release and its EL10 x86_64 RPM. Rose verifies the SHA-256 digest published with the selected release asset before installation. `build_files/software.env` keeps an empty mergerfs emergency pin that is used only after a demonstrated regression.
 
-UPSide, Superfile, and VirtUI Manager are not built from upstream source in this repository. They are consumed from the verified `:stable` artifacts published by [Home Server Packages](https://github.com/home-server-project/home-server-packages).
+UPSide and VirtUI Manager are not built from upstream source in this repository. They are consumed from the verified `:stable` artifacts published by [Home Server Packages](https://github.com/home-server-project/home-server-packages).
 
 Each Rose image build resolves those moving stable package artifacts to exact immutable digests before composition. Home Server Packages owns their upstream release tracking, exact source commits, package recipes, dependency locks, license handling, and Fedora/AlmaLinux package validation.
 
-UPSide and Superfile are required by both Rose variants. VirtUI Manager is required only by Home Server Rose HCI. Failure to resolve or install one of the required central package artifacts blocks the affected image build.
+uBlue Brew is consumed from `ghcr.io/ublue-os/brew:latest`. Each build resolves that moving tag to the current immutable digest and verifies the uBlue signature before composition. Homebrew itself remains mutable under `/home/linuxbrew/.linuxbrew` and updates normally with `brew update`.
+
+UPSide and the uBlue Brew integration are required by both Rose variants. VirtUI Manager is required only by Home Server Rose HCI. Failure to resolve or install one of these required inputs blocks the affected image build.
 
 ## Critical health contract
 
@@ -31,7 +33,7 @@ Both images require:
 - Intel compute runtime plus Intel/AMD GPU firmware needed by the host device layer
 - mergerfs package plus a real FUSE mount/read/write/unmount smoke test
 - UPSide RPM plus its Cockpit manifest
-- Superfile RPM plus the `spf` command
+- uBlue Brew bootstrap payload, service units, shell integration, and Homebrew Linux prerequisites
 
 GPU media acceleration follows a container-first model. The host supplies kernel GPU drivers, firmware and `/dev/dri`; application containers such as Jellyfin supply their own VA-API/Quick Sync or Mesa userspace stack. CI therefore does not require host `libva`, `intel-media-driver` or Mesa VA-API packages. Real media acceleration remains a hardware acceptance test using actual containers.
 
@@ -60,9 +62,6 @@ The following capabilities are intended to be present on both images but do not 
 - WireGuard tooling
 - fwupd and hardware diagnostic tools
 - PowerTOP
-- btop
-- Micro
-- fastfetch
 - tmux
 - jq/rsync/pv and similar administration utilities
 - rclone/duperemove and other non-runtime storage helpers
@@ -79,7 +78,7 @@ The pipeline is:
 resolve + verify exact Home Server Base digest
         |
         v
-resolve mergerfs + exact package artifact digests
+resolve mergerfs + exact package/Brew image digests
         |
         v
 build both images in parallel

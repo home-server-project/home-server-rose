@@ -93,11 +93,15 @@ if rpm -q pcp >/dev/null 2>&1; then
 fi
 
 # Home Server Packages owns source tracking, package builds, and cross-distro
-# validation for these utilities. Rose consumes the exact RPM artifacts selected
-# by the workflow for this image build.
-dnf install -y \
-    /upside-rpm/cockpit-upside-*.noarch.rpm \
-    /superfile-rpm/superfile-*.x86_64.rpm
+# validation for UPSide. Rose consumes the exact RPM artifact selected by the
+# workflow for this image build.
+dnf install -y /upside-rpm/cockpit-upside-*.noarch.rpm
+
+# uBlue Brew ships the Homebrew payload and bootc integration files. Keep
+# Homebrew itself current automatically, but leave formula upgrades under
+# administrator control.
+systemctl preset brew-setup.service brew-update.timer
+systemctl disable brew-upgrade.timer 2>/dev/null || true
 
 # mergerfs always follows the latest stable upstream EL10 RPM unless an emergency pin
 # is configured. The workflow resolves the exact asset and its upstream-published digest.
@@ -168,7 +172,7 @@ systemctl enable firewalld.service 2>/dev/null || true
 systemctl enable sshd.service 2>/dev/null || true
 
 # Cheap build-time checks. Functional release gates run against the completed image in CI.
-for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge spf; do
+for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge git file zstd gcc g++ make ps; do
     command -v "${cmd}"
 done
 
@@ -185,9 +189,27 @@ rpm -q \
     cockpit-podman \
     cockpit-storaged \
     cockpit-upside \
-    superfile
+    file \
+    git \
+    zstd \
+    gcc \
+    gcc-c++ \
+    make \
+    procps-ng
 
 test -f /usr/share/cockpit/upside/manifest.json
+
+test -f /usr/share/homebrew.tar.zst
+test -f /usr/lib/systemd/system/brew-setup.service
+test -f /usr/lib/systemd/system/brew-update.service
+test -f /usr/lib/systemd/system/brew-update.timer
+test -f /usr/lib/systemd/system/brew-upgrade.service
+test -f /usr/lib/systemd/system/brew-upgrade.timer
+test -f /etc/profile.d/brew.sh
+tar --zstd -tf /usr/share/homebrew.tar.zst | grep -Eq '(^|/)home/linuxbrew/.linuxbrew/bin/brew$'
+test "$(systemctl is-enabled brew-setup.service)" = "enabled"
+test "$(systemctl is-enabled brew-update.timer)" = "enabled"
+test "$(systemctl is-enabled brew-upgrade.timer 2>/dev/null || true)" = "disabled"
 
 test -f /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-rose-passwordless-wheel)" = "440 root root"

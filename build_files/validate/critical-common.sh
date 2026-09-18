@@ -48,7 +48,7 @@ pass '/var/tmp early-boot mountpoint'
 
 for cmd in \
     sudo visudo podman toolbox nmcli resolvectl firewall-cmd sshd cockpit-bridge \
-    mergerfs btrfs mkfs.btrfs exportfs smbd testparm spf; do
+    mergerfs btrfs mkfs.btrfs exportfs smbd testparm git file zstd gcc g++ make ps; do
     command -v "${cmd}" >/dev/null
     pass "command ${cmd}"
 done
@@ -58,11 +58,24 @@ rpm -q \
     btrfs-progs nfs-utils samba \
     intel-compute-runtime \
     cockpit-system cockpit-files cockpit-podman cockpit-storaged \
-    cockpit-upside superfile >/dev/null
+    cockpit-upside file git zstd gcc gcc-c++ make procps-ng >/dev/null
 pass 'critical package contract'
 
 test -f /usr/share/cockpit/upside/manifest.json
 pass 'UPSide Cockpit extension'
+
+test -f /usr/share/homebrew.tar.zst
+test -f /usr/lib/systemd/system/brew-setup.service
+test -f /usr/lib/systemd/system/brew-update.service
+test -f /usr/lib/systemd/system/brew-update.timer
+test -f /usr/lib/systemd/system/brew-upgrade.service
+test -f /usr/lib/systemd/system/brew-upgrade.timer
+test -f /etc/profile.d/brew.sh
+tar --zstd -tf /usr/share/homebrew.tar.zst | grep -Eq '(^|/)home/linuxbrew/.linuxbrew/bin/brew$'
+test "$(systemctl is-enabled brew-setup.service)" = "enabled"
+test "$(systemctl is-enabled brew-update.timer)" = "enabled"
+test "$(systemctl is-enabled brew-upgrade.timer 2>/dev/null || true)" = "disabled"
+pass 'uBlue Brew bootc integration'
 
 # Functional Btrfs userspace smoke test on a disposable regular file.
 tmp="$(mktemp -d)"
