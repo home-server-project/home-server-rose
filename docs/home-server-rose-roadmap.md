@@ -46,7 +46,7 @@ Initial boot/root filesystem: **XFS**.
 
 Btrfs is normal supported data-filesystem tooling through `btrfs-progs`.
 
-Initial CPU architecture: normal AlmaLinux 10 **x86-64-v3**. x86-64-v2 is a separate future investigation.
+CPU baselines: normal AlmaLinux 10 **x86-64-v3** plus a compatibility **x86-64-v2** build. The normal channel uses Home Server Base 10 `:stable`; the compatibility channel uses `:stable-v2`.
 
 ## 3. Container model
 
@@ -126,7 +126,7 @@ Tailscale and NetBird are installed but never enrolled by the generic image.
 - hdparm
 - USB/PCI utilities
 
-**mergerfs is release-critical.** The build follows the latest stable upstream EL10 x86_64 RPM by default, verifies the SHA-256 digest published for that release asset, and then runs a real FUSE mount/read/write/unmount health test before publication.
+**mergerfs is release-critical.** Normal x86-64-v3 builds keep the latest stable upstream EL10 x86_64 RPM path and verify the upstream-published SHA-256 digest. x86-64-v2 builds consume the separately built and validated `mergerfs:stable-v2` Home Server Packages artifact. Both paths run the same real FUSE mount/read/write/unmount health test before publication.
 
 SnapRAID remains deferred. ZFS is deliberately excluded.
 
@@ -239,7 +239,7 @@ Preferred source order:
 5. official upstream EL10 release assets where no central package exists
 6. narrowly scoped third-party repositories only when needed
 
-Current external sources include Tailscale, NetBird, mergerfs upstream releases, and Home Server Packages artifacts for UPSide, Superfile and VirtUI Manager. RPM Fusion is not part of the image dependency chain.
+Current external sources include Tailscale, NetBird, mergerfs upstream releases for the normal CPU baseline, and Home Server Packages artifacts for UPSide, Superfile, VirtUI Manager and x86-64-v2 mergerfs. RPM Fusion is not part of the image dependency chain.
 
 ### Latest by default
 
@@ -254,9 +254,9 @@ upstream release
         -> publish if critical health passes
 ```
 
-Alma/EPEL packages update naturally with each rebuild. mergerfs resolves the current stable upstream EL10 release on each rebuild. UPSide, Superfile and VirtUI Manager follow the verified stable channels maintained by Home Server Packages.
+Alma/EPEL packages update naturally with each rebuild. Normal x86-64-v3 mergerfs resolves the current stable upstream EL10 release on each rebuild; x86-64-v2 mergerfs follows the verified `stable-v2` channel maintained by Home Server Packages. UPSide, Superfile and VirtUI Manager follow their verified stable channels there as well.
 
-Rose does not keep routine version pins for those three packages. Their exact upstream versions, commits and dependency locks belong to Home Server Packages. Only mergerfs retains a local emergency regression pin because Rose still consumes that upstream release asset directly.
+Rose does not keep routine version pins for Home Server Packages artifacts. Their exact upstream versions, commits and dependency locks belong to Home Server Packages. Only the normal upstream mergerfs path retains a local emergency regression pin.
 
 ## 9. Health contract and release gates
 
@@ -301,12 +301,13 @@ The normal image must explicitly fail if the KVM/libvirt HCI host stack or VirtU
 
 ## 10. Supply chain and CI
 
-The repository builds **both images in parallel**.
+The repository builds **both products at both CPU baselines in parallel**: Rose and Rose HCI for x86-64-v3 and x86-64-v2.
 
 Required behavior:
 
-- resolve mergerfs once per workflow so both images use the same release snapshot
-- resolve base and package artifact references to exact digests
+- resolve the normal upstream mergerfs release once per workflow
+- resolve `mergerfs:stable-v2` to an exact digest for compatibility builds
+- resolve the matching Home Server Base `:stable` / `:stable-v2` parent and package artifact references to exact digests
 - UPSide and Superfile are common verified package inputs
 - VirtUI Manager is resolved and consumed only for HCI
 - shared minimal-plus/common feature layer
@@ -319,12 +320,16 @@ Required behavior:
 - no credentials or site-specific data in layers
 - no third-party source-build toolchains in Rose for packages already produced by Home Server Packages
 
-Published tags:
+Published stable tags:
 
-- moving `:10`
-- immutable `10-YYYYMMDD-<git-sha>`
+- normal moving `:10`
+- normal immutable `10-YYYYMMDD-<git-sha>`
+- compatibility moving `:10-v2`
+- compatibility immutable `10-v2-YYYYMMDD-<git-sha>`
 
-A GitHub Release is created only after **both** images succeed.
+Testing uses the matching `:testing` / `:testing-v2` moving tags and immutable prefixes.
+
+A GitHub Release is created only after **all four** stable matrix builds succeed.
 
 ## 11. Development/readiness policy
 
