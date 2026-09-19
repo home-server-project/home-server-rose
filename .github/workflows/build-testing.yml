@@ -269,7 +269,6 @@ jobs:
           BREW_REF: ${{ needs.resolve_external.outputs.brew_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
           MERGERFS_REF: ${{ needs.resolve_external.outputs.mergerfs_ref }}
-          MERGERFS_REF: ${{ needs.resolve_external.outputs.mergerfs_ref }}
         run: |
           set -euo pipefail
 
