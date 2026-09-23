@@ -4,9 +4,9 @@ This document defines what may block a Home Server Rose image release and how ex
 
 ## Update sources
 
-Home Server Rose consumes the moving `ghcr.io/home-server-project/home-server-base-10:stable` parent. CI resolves that parent to an exact digest and verifies its Home Server Project Cosign signature before composition. Home Server Base supplies the AlmaLinux 10 Minimal Plus foundation and enabled base repositories; Rose then installs its additional AlmaLinux/EPEL packages during the rebuild.
+Home Server Rose consumes the moving Home Server Base 10 channels: `:stable` for the normal x86-64-v3 baseline and `:stable-v2` for the compatibility x86-64-v2 baseline. CI resolves the selected parent to an exact digest and verifies its Home Server Project Cosign signature before composition. Home Server Base supplies the AlmaLinux 10 Minimal Plus foundation and enabled base repositories; Rose then installs its additional AlmaLinux/EPEL packages during the rebuild.
 
-mergerfs follows the latest stable upstream GitHub release and its EL10 x86_64 RPM. Rose verifies the SHA-256 digest published with the selected release asset before installation. `build_files/software.env` keeps an empty mergerfs emergency pin that is used only after a demonstrated regression.
+Normal x86-64-v3 Rose builds follow the latest stable upstream mergerfs GitHub release and its EL10 x86_64 RPM, verifying the upstream-published SHA-256 digest before installation. x86-64-v2 builds consume the separately built, validated and digest-resolved `mergerfs:stable-v2` artifact from Home Server Packages. `build_files/software.env` keeps the upstream mergerfs emergency pin only for the normal upstream path.
 
 UPSide and VirtUI Manager are not built from upstream source in this repository. They are consumed from the verified `:stable` artifacts published by [Home Server Packages](https://github.com/home-server-project/home-server-packages).
 
@@ -14,7 +14,7 @@ Each Rose image build resolves those moving stable package artifacts to exact im
 
 uBlue Brew is consumed from `ghcr.io/ublue-os/brew:latest`. Each build resolves that moving tag to the current immutable digest and verifies the uBlue signature before composition. Homebrew itself remains mutable under `/home/linuxbrew/.linuxbrew` and updates normally with `brew update`.
 
-UPSide and the uBlue Brew integration are required by both Rose variants. VirtUI Manager is required only by Home Server Rose HCI. Failure to resolve or install one of these required inputs blocks the affected image build.
+UPSide and the uBlue Brew integration are required by both Rose product variants at both CPU baselines. mergerfs is required through the baseline-specific source described above. VirtUI Manager is required only by Home Server Rose HCI. Failure to resolve or install one of these required inputs blocks the affected image build.
 
 ## Critical health contract
 
@@ -81,7 +81,7 @@ resolve + verify exact Home Server Base digest
 resolve mergerfs + exact package/Brew image digests
         |
         v
-build both images in parallel
+build both products at both CPU baselines in parallel
         |
         v
 critical common health
@@ -97,7 +97,7 @@ optional health report
 push -> sign -> verify
         |
         v
-GitHub Release only after both matrix images succeed
+GitHub Release only after all four matrix builds succeed
 ```
 
-A failed critical check means no new moving `:10` image for that target and therefore no paired GitHub Release.
+A failed critical check means no new moving stable image for that product/baseline target (`:10` or `:10-v2`) and therefore no GitHub Release for that source revision.

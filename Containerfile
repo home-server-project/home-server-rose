@@ -2,14 +2,16 @@ ARG HOME_SERVER_BASE_IMAGE=ghcr.io/home-server-project/home-server-base-10:stabl
 ARG UPSIDE_PACKAGE_IMAGE=ghcr.io/home-server-project/cockpit-upside:stable
 ARG BREW_IMAGE=ghcr.io/ublue-os/brew:latest
 ARG VIRTUI_MANAGER_PACKAGE_IMAGE=ghcr.io/home-server-project/virtui-manager:stable
+ARG MERGERFS_PACKAGE_IMAGE=ghcr.io/home-server-project/mergerfs:stable-v2
 ARG HOME_SERVER_ROSE_REPOSITORY=ghcr.io/home-server-project/home-server-rose
 ARG HOME_SERVER_ROSE_HCI_REPOSITORY=ghcr.io/home-server-project/home-server-rose-hci
 
 # -----------------------------------------------------------------------------
 # Verified shared third-party package artifacts
 # -----------------------------------------------------------------------------
-FROM ${UPSIDE_PACKAGE_IMAGE} AS upside-package
-FROM ${BREW_IMAGE} AS brew-package
+FROM --platform=linux/amd64 ${UPSIDE_PACKAGE_IMAGE} AS upside-package
+FROM --platform=linux/amd64 ${BREW_IMAGE} AS brew-package
+FROM --platform=linux/amd64 ${MERGERFS_PACKAGE_IMAGE} AS mergerfs-package
 
 # -----------------------------------------------------------------------------
 # Build context exposed to bind mounts
@@ -27,6 +29,7 @@ COPY cosign.pub /cosign.pub
 FROM ${HOME_SERVER_BASE_IMAGE} AS home-server-common
 COPY --from=brew-package /system_files /
 
+ARG MERGERFS_SOURCE=upstream
 ARG MERGERFS_URL
 ARG MERGERFS_SHA256
 
@@ -40,8 +43,10 @@ LABEL containers.bootc=1 \
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=upside-package,source=/rpms,target=/upside-rpm \
+    --mount=type=bind,from=mergerfs-package,source=/rpms,target=/mergerfs-rpm \
     --mount=type=tmpfs,dst=/run \
     --mount=type=tmpfs,dst=/tmp \
+    MERGERFS_SOURCE="${MERGERFS_SOURCE}" \
     MERGERFS_URL="${MERGERFS_URL}" \
     MERGERFS_SHA256="${MERGERFS_SHA256}" \
     /ctx/build_files/build-common.sh
@@ -77,7 +82,7 @@ RUN bootc container lint --fatal-warnings
 # -----------------------------------------------------------------------------
 # HCI-only verified package artifact
 # -----------------------------------------------------------------------------
-FROM ${VIRTUI_MANAGER_PACKAGE_IMAGE} AS virtui-manager-package
+FROM --platform=linux/amd64 ${VIRTUI_MANAGER_PACKAGE_IMAGE} AS virtui-manager-package
 
 # -----------------------------------------------------------------------------
 # HCI: exact same common layer plus virtualization

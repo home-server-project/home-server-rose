@@ -46,17 +46,19 @@ Prefer a Fedora CoreOS / Universal Blue uCore foundation with a **newer LTS kern
 
 ## Images
 
-| Variant | Stable image | Purpose |
-|---|---|---|
-| Home Server Rose | `ghcr.io/home-server-project/home-server-rose:10` | Full home-server host without virtualization stack |
-| Home Server Rose HCI | `ghcr.io/home-server-project/home-server-rose-hci:10` | Same host plus KVM/QEMU/libvirt and VM-management tooling |
+| Variant | CPU baseline | Stable image | Purpose |
+|---|---|---|---|
+| Home Server Rose | x86-64-v3 | `ghcr.io/home-server-project/home-server-rose:10` | Full home-server host without virtualization stack |
+| Home Server Rose | x86-64-v2 | `ghcr.io/home-server-project/home-server-rose:10-v2` | Compatibility CPU baseline of the same product |
+| Home Server Rose HCI | x86-64-v3 | `ghcr.io/home-server-project/home-server-rose-hci:10` | Same host plus KVM/QEMU/libvirt and VM-management tooling |
+| Home Server Rose HCI | x86-64-v2 | `ghcr.io/home-server-project/home-server-rose-hci:10-v2` | Compatibility CPU baseline of the HCI product |
 
 ### Release channels
 
 | Channel | Moving tag | Source branch | Schedule |
 |---|---|---|---|
-| Stable | `:10` | `main` | Friday 15:30 UTC |
-| Testing | `:testing` | `testing` | Daily 14:30 UTC |
+| Stable | `:10` / `:10-v2` | `main` | Friday 15:30 UTC |
+| Testing | `:testing` / `:testing-v2` | `testing` | Daily 14:30 UTC |
 
 Testing is the daily canary for the current Home Server Base and Rose package set. Stable performs its own complete validation before publication and does not depend on the status of a particular Testing workflow run.
 
@@ -92,7 +94,7 @@ The system uses a fixed **4 GiB zram swap device** and does not require a disk s
 
 Home Server Base 10 supplies the AlmaLinux 10 Minimal Plus parent and shared base behavior. Rose installs its additional AlmaLinux/EPEL packages and Home Server tooling during each rebuild.
 
-mergerfs follows its latest stable upstream EL10 release. UPSide and VirtUI Manager are consumed from verified [Home Server Packages](https://github.com/home-server-project/home-server-packages) stable artifacts. uBlue Brew is resolved from its current `:latest` image to an exact verified digest for each Rose build; Homebrew then updates itself normally through `brew update`.
+Normal x86-64-v3 builds keep the latest stable upstream mergerfs EL10 RPM path. x86-64-v2 builds consume the separately built and validated `mergerfs:stable-v2` artifact from [Home Server Packages](https://github.com/home-server-project/home-server-packages). UPSide and VirtUI Manager are also consumed from verified Home Server Packages stable artifacts. uBlue Brew is resolved from its current `:latest` image to an exact verified digest for each Rose build; Homebrew then updates itself normally through `brew update`.
 
 Critical server functionality is tested before publication. In particular:
 
@@ -109,21 +111,23 @@ The detailed release-health contract is documented in [`docs/health-and-update-p
 
 ## Image signing and releases
 
-Successful stable builds publish the moving `:10` tag and an immutable tag:
+Successful stable builds publish both CPU baselines:
 
 ```text
-10-YYYYMMDD-<git-sha>
+:10      -> 10-YYYYMMDD-<git-sha>
+:10-v2   -> 10-v2-YYYYMMDD-<git-sha>
 ```
 
-Successful testing builds publish the moving `:testing` tag and an immutable tag:
+Successful testing builds publish the equivalent testing channels:
 
 ```text
-testing-YYYYMMDD-<git-sha>
+:testing      -> testing-YYYYMMDD-<git-sha>
+:testing-v2   -> testing-v2-YYYYMMDD-<git-sha>
 ```
 
 Published image digests are signed with Cosign.
 
-Testing builds do not create GitHub Releases. A stable GitHub Release is created only after both Home Server Rose and Home Server Rose HCI pass the stable release-health contract.
+Testing builds do not create GitHub Releases. A stable GitHub Release is created only after Home Server Rose and Home Server Rose HCI pass the stable release-health contract at both x86-64-v3 and x86-64-v2 CPU baselines.
 
 GHCR immutable image history is retained separately from GitHub Releases. Testing and stable image cleanup keeps at least seven recent tagged builds and removes matching immutable image versions older than 45 days while preserving the moving channel tags.
 

@@ -18,13 +18,14 @@ concurrency:
 
 env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-  CURRENT_TAG: 'testing'
   RECHUNK_MAX_LAYERS: '127'
   OCI_LAYER_LIMIT: '128'
   HOME_SERVER_BASE_IMAGE: ghcr.io/home-server-project/home-server-base-10:stable
+  HOME_SERVER_BASE_V2_IMAGE: ghcr.io/home-server-project/home-server-base-10:stable-v2
   UPSIDE_PACKAGE_IMAGE: ghcr.io/home-server-project/cockpit-upside:stable
   BREW_IMAGE: ghcr.io/ublue-os/brew:latest
   VIRTUI_MANAGER_PACKAGE_IMAGE: ghcr.io/home-server-project/virtui-manager:stable
+  MERGERFS_PACKAGE_IMAGE: ghcr.io/home-server-project/mergerfs:stable-v2
 
 jobs:
   resolve_external:
@@ -39,9 +40,11 @@ jobs:
       mergerfs_url: ${{ steps.external.outputs.mergerfs_url }}
       mergerfs_sha256: ${{ steps.external.outputs.mergerfs_sha256 }}
       base_ref: ${{ steps.base.outputs.base_ref }}
+      base_v2_ref: ${{ steps.base.outputs.base_v2_ref }}
       upside_ref: ${{ steps.packages.outputs.upside_ref }}
       brew_ref: ${{ steps.packages.outputs.brew_ref }}
       virtui_ref: ${{ steps.packages.outputs.virtui_ref }}
+      mergerfs_ref: ${{ steps.packages.outputs.mergerfs_ref }}
 
     steps:
       - name: Checkout testing branch
@@ -87,12 +90,41 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          digest="$(skopeo inspect             --override-arch amd64             --format '{{.Digest}}'             "docker://${HOME_SERVER_BASE_IMAGE}")"
-          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
-          base_ref="${HOME_SERVER_BASE_IMAGE%:*}@${digest}"
-          cosign verify             --new-bundle-format=false             --key cosign.pub             "${base_ref}" >/dev/null
+
+          resolve_ref() {
+            local image="$1"
+            local variant="${2:-}"
+            local digest
+            local -a inspect_args=(--override-arch amd64)
+
+            if [[ -n "${variant}" ]]; then
+              inspect_args+=(--override-variant "${variant}")
+            fi
+
+            digest="$(skopeo inspect \
+              "${inspect_args[@]}" \
+              --format '{{.Digest}}' \
+              "docker://${image}")"
+            [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+            printf '%s@%s' "${image%:*}" "${digest}"
+          }
+
+          base_ref="$(resolve_ref "${HOME_SERVER_BASE_IMAGE}")"
+          base_v2_ref="$(resolve_ref "${HOME_SERVER_BASE_V2_IMAGE}" v2)"
+
+          cosign verify \
+            --new-bundle-format=false \
+            --key cosign.pub \
+            "${base_ref}" >/dev/null
+          cosign verify \
+            --new-bundle-format=false \
+            --key cosign.pub \
+            "${base_v2_ref}" >/dev/null
+
           echo "base_ref=${base_ref}" >> "${GITHUB_OUTPUT}"
-          echo "Verified Home Server Base: ${base_ref}"
+          echo "base_v2_ref=${base_v2_ref}" >> "${GITHUB_OUTPUT}"
+          echo "Verified Home Server Base normal: ${base_ref}"
+          echo "Verified Home Server Base v2: ${base_v2_ref}"
 
       - name: Resolve package and Brew inputs
         id: packages
@@ -121,6 +153,7 @@ jobs:
           echo "brew_ref=${brew_ref}" >> "${GITHUB_OUTPUT}"
 
           echo "virtui_ref=$(resolve_ref "${VIRTUI_MANAGER_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
+          echo "mergerfs_ref=$(resolve_ref "${MERGERFS_PACKAGE_IMAGE}")" >> "${GITHUB_OUTPUT}"
 
       - name: Resolution summary
         shell: bash
@@ -131,8 +164,10 @@ jobs:
             echo "- Source branch: testing"
             echo "- Source revision: ${{ steps.metadata.outputs.source_sha }}"
             echo "- Build date: ${{ steps.metadata.outputs.build_date }}"
-            echo "- Home Server Base: ${{ steps.base.outputs.base_ref }}"
-            echo "- mergerfs: ${{ steps.external.outputs.mergerfs_tag }}"
+            echo "- Home Server Base normal: ${{ steps.base.outputs.base_ref }}"
+            echo "- Home Server Base v2: ${{ steps.base.outputs.base_v2_ref }}"
+            echo "- mergerfs normal: ${{ steps.external.outputs.mergerfs_tag }}"
+            echo "- mergerfs v2 package: ${{ steps.packages.outputs.mergerfs_ref }}"
             echo "- UPSide: ${{ steps.packages.outputs.upside_ref }}"
             echo "- uBlue Brew: ${{ steps.packages.outputs.brew_ref }}"
             echo "- VirtUI Manager (HCI only): ${{ steps.packages.outputs.virtui_ref }}"
@@ -150,9 +185,43 @@ jobs:
           - image_name: home-server-rose
             target: home-server-rose
             validation_mode: base
+            arch_name: x86_64
+            platform: linux/amd64
+            rpm_arch: x86_64
+            microarch: v3
+            current_tag: testing
+            immutable_prefix: testing
+            mergerfs_source: upstream
           - image_name: home-server-rose-hci
             target: home-server-rose-hci
             validation_mode: hci
+            arch_name: x86_64
+            platform: linux/amd64
+            rpm_arch: x86_64
+            microarch: v3
+            current_tag: testing
+            immutable_prefix: testing
+            mergerfs_source: upstream
+          - image_name: home-server-rose
+            target: home-server-rose
+            validation_mode: base
+            arch_name: x86_64_v2
+            platform: linux/amd64/v2
+            rpm_arch: x86_64_v2
+            microarch: v2
+            current_tag: testing-v2
+            immutable_prefix: testing-v2
+            mergerfs_source: package-v2
+          - image_name: home-server-rose-hci
+            target: home-server-rose-hci
+            validation_mode: hci
+            arch_name: x86_64_v2
+            platform: linux/amd64/v2
+            rpm_arch: x86_64_v2
+            microarch: v2
+            current_tag: testing-v2
+            immutable_prefix: testing-v2
+            mergerfs_source: package-v2
 
     permissions:
       contents: read
@@ -195,10 +264,11 @@ jobs:
       - name: Pre-pull resolved build inputs
         shell: bash
         env:
-          BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
+          BASE_REF: ${{ matrix.arch_name == 'x86_64_v2' && needs.resolve_external.outputs.base_v2_ref || needs.resolve_external.outputs.base_ref }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
           BREW_REF: ${{ needs.resolve_external.outputs.brew_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
+          MERGERFS_REF: ${{ needs.resolve_external.outputs.mergerfs_ref }}
         run: |
           set -euo pipefail
 
@@ -221,6 +291,7 @@ jobs:
           pull_with_retry "${BASE_REF}"
           pull_with_retry "${UPSIDE_REF}"
           pull_with_retry "${BREW_REF}"
+          pull_with_retry "${MERGERFS_REF}"
           if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
             pull_with_retry "${VIRTUI_MANAGER_REF}"
           fi
@@ -235,8 +306,9 @@ jobs:
           image_name="${{ matrix.image_name }}"
           short_sha="${SOURCE_SHA:0:7}"
           build_date="${{ needs.resolve_external.outputs.build_date }}"
-          build_tag="${CURRENT_TAG}-${build_date}-${short_sha}"
+          build_tag="${{ matrix.immutable_prefix }}-${build_date}-${short_sha}"
 
+          echo "CURRENT_TAG=${{ matrix.current_tag }}" >> "${GITHUB_ENV}"
           echo "IMAGE_REGISTRY=${registry}" >> "${GITHUB_ENV}"
           echo "IMAGE_NAME=${image_name}" >> "${GITHUB_ENV}"
           echo "IMAGE_REPOSITORY=${registry}/${image_name}" >> "${GITHUB_ENV}"
@@ -246,22 +318,25 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
-          BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
+          BASE_REF: ${{ matrix.arch_name == 'x86_64_v2' && needs.resolve_external.outputs.base_v2_ref || needs.resolve_external.outputs.base_ref }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
           BREW_REF: ${{ needs.resolve_external.outputs.brew_ref }}
           VIRTUI_MANAGER_REF: ${{ needs.resolve_external.outputs.virtui_ref }}
+          MERGERFS_REF: ${{ needs.resolve_external.outputs.mergerfs_ref }}
         run: |
           set -euo pipefail
 
           package_args=(
             --build-arg "UPSIDE_PACKAGE_IMAGE=${UPSIDE_REF}"
             --build-arg "BREW_IMAGE=${BREW_REF}"
+            --build-arg "MERGERFS_PACKAGE_IMAGE=${MERGERFS_REF}"
           )
           if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
             package_args+=(--build-arg "VIRTUI_MANAGER_PACKAGE_IMAGE=${VIRTUI_MANAGER_REF}")
           fi
 
           sudo podman build \
+            --platform "${{ matrix.platform }}" \
             --pull=never \
             --security-opt=label=disable \
             --cap-add=all \
@@ -269,12 +344,15 @@ jobs:
             --target "${{ matrix.target }}" \
             --build-arg "HOME_SERVER_BASE_IMAGE=${BASE_REF}" \
             "${package_args[@]}" \
+            --build-arg "MERGERFS_SOURCE=${{ matrix.mergerfs_source }}" \
             --build-arg "MERGERFS_URL=${{ needs.resolve_external.outputs.mergerfs_url }}" \
             --build-arg "MERGERFS_SHA256=${{ needs.resolve_external.outputs.mergerfs_sha256 }}" \
             --build-arg "HOME_SERVER_ROSE_REPOSITORY=${IMAGE_REGISTRY}/home-server-rose" \
             --build-arg "HOME_SERVER_ROSE_HCI_REPOSITORY=${IMAGE_REGISTRY}/home-server-rose-hci" \
             --label "org.opencontainers.image.revision=${SOURCE_SHA}" \
             --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --label "io.home-server-project.rose.arch=${{ matrix.arch_name }}" \
+            --label "io.home-server-project.rose.microarch=${{ matrix.microarch }}" \
             --tag "${IMAGE_NAME}:unrechunked" \
             --file Containerfile \
             .
@@ -315,6 +393,38 @@ jobs:
 
           echo "layers=${layer_count}" >> "${GITHUB_OUTPUT}"
           echo "Rechunked image layers: ${layer_count} / OCI max ${OCI_LAYER_LIMIT} (RPM chunk target ${RECHUNK_MAX_LAYERS})"
+
+      - name: Validate completed image architecture
+        shell: bash
+        env:
+          EXPECTED_RPM_ARCH: ${{ matrix.rpm_arch }}
+          EXPECTED_IMAGE_ARCH: ${{ matrix.arch_name }}
+          EXPECTED_MICROARCH: ${{ matrix.microarch }}
+        run: |
+          set -euo pipefail
+
+          sudo podman run --rm \
+            -e "EXPECTED_RPM_ARCH=${EXPECTED_RPM_ARCH}" \
+            --entrypoint /bin/bash \
+            "${IMAGE_NAME}:test" \
+            -c '
+              set -euo pipefail
+              glibc_arch="$(rpm -q --qf "%{ARCH}\\n" glibc | head -n1)"
+              if [[ "${glibc_arch}" != "${EXPECTED_RPM_ARCH}" ]]; then
+                echo "ERROR: glibc RPM architecture is ${glibc_arch}; expected ${EXPECTED_RPM_ARCH}" >&2
+                exit 1
+              fi
+              echo "Validated RPM architecture: ${glibc_arch}"
+            '
+
+          arch_label="$(sudo podman image inspect "${IMAGE_NAME}:test" \
+            --format '{{ index .Labels "io.home-server-project.rose.arch" }}')"
+          microarch_label="$(sudo podman image inspect "${IMAGE_NAME}:test" \
+            --format '{{ index .Labels "io.home-server-project.rose.microarch" }}')"
+
+          [[ "${arch_label}" == "${EXPECTED_IMAGE_ARCH}" ]]
+          [[ "${microarch_label}" == "${EXPECTED_MICROARCH}" ]]
+          echo "Validated image labels: arch=${arch_label}, microarch=${microarch_label}"
 
       - name: Critical common health
         shell: bash
@@ -428,7 +538,7 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ needs.resolve_external.outputs.source_sha }}
-          BASE_REF: ${{ needs.resolve_external.outputs.base_ref }}
+          BASE_REF: ${{ matrix.arch_name == 'x86_64_v2' && needs.resolve_external.outputs.base_v2_ref || needs.resolve_external.outputs.base_ref }}
           RECHUNK_LAYERS: ${{ steps.rechunk.outputs.layers }}
           DIGEST: ${{ steps.push.outputs.digest }}
           UPSIDE_REF: ${{ needs.resolve_external.outputs.upside_ref }}
@@ -441,9 +551,17 @@ jobs:
             echo "- Source branch: testing"
             echo "- Source revision: ${SOURCE_SHA}"
             echo "- Target: ${{ matrix.target }}"
+            echo "- Build platform: ${{ matrix.platform }}"
+            echo "- RPM architecture: ${{ matrix.rpm_arch }}"
+            echo "- CPU microarchitecture baseline: ${{ matrix.microarch }}"
             echo "- Home Server Base: ${BASE_REF:-unknown}"
             echo "- UPSide package: ${UPSIDE_REF:-unknown}"
             echo "- uBlue Brew image: ${BREW_REF:-unknown}"
+            if [[ "${{ matrix.mergerfs_source }}" == 'package-v2' ]]; then
+              echo "- mergerfs: ${MERGERFS_REF:-unknown}"
+            else
+              echo "- mergerfs: upstream ${{ needs.resolve_external.outputs.mergerfs_tag }}"
+            fi
             if [[ "${{ matrix.validation_mode }}" == 'hci' ]]; then
               echo "- VirtUI Manager package: ${VIRTUI_MANAGER_REF:-unknown}"
             fi
@@ -467,7 +585,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           packages: home-server-rose,home-server-rose-hci
           delete-tags: 'testing-*'
-          exclude-tags: 'testing,10,10-*'
+          exclude-tags: 'testing,testing-v2,10,10-*'
           older-than: 45 days
           keep-n-tagged: 7
           validate: true

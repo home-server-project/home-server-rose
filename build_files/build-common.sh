@@ -6,8 +6,7 @@ source /ctx/build_files/software.env
 : "${HOME_SERVER_OPTIONAL_PACKAGES:?HOME_SERVER_OPTIONAL_PACKAGES must be set}"
 : "${TAILSCALE_PACKAGE:?TAILSCALE_PACKAGE must be set}"
 : "${NETBIRD_PACKAGE:?NETBIRD_PACKAGE must be set}"
-: "${MERGERFS_URL:?MERGERFS_URL must be set}"
-: "${MERGERFS_SHA256:?MERGERFS_SHA256 must be set}"
+: "${MERGERFS_SOURCE:?MERGERFS_SOURCE must be set}"
 
 cp -avf /ctx/system_files/. /
 chmod 0440 /etc/sudoers.d/90-home-server-rose-passwordless-wheel
@@ -103,13 +102,27 @@ dnf install -y /upside-rpm/cockpit-upside-*.noarch.rpm
 systemctl preset brew-setup.service brew-update.timer
 systemctl disable brew-upgrade.timer 2>/dev/null || true
 
-# mergerfs always follows the latest stable upstream EL10 RPM unless an emergency pin
-# is configured. The workflow resolves the exact asset and its upstream-published digest.
-mergerfs_rpm="/tmp/mergerfs.rpm"
-curl -fL "${MERGERFS_URL}" -o "${mergerfs_rpm}"
-printf '%s  %s\n' "${MERGERFS_SHA256}" "${mergerfs_rpm}" | sha256sum -c -
-dnf install -y "${mergerfs_rpm}"
-rm -f "${mergerfs_rpm}"
+# Normal Rose keeps the existing upstream mergerfs release path. The x86-64-v2
+# build consumes the separately built and validated Home Server Packages RPM.
+case "${MERGERFS_SOURCE}" in
+    upstream)
+        : "${MERGERFS_URL:?MERGERFS_URL must be set for upstream mergerfs}"
+        : "${MERGERFS_SHA256:?MERGERFS_SHA256 must be set for upstream mergerfs}"
+        mergerfs_rpm="/tmp/mergerfs.rpm"
+        curl -fL "${MERGERFS_URL}" -o "${mergerfs_rpm}"
+        printf '%s  %s\n' "${MERGERFS_SHA256}" "${mergerfs_rpm}" | sha256sum -c -
+        dnf install -y "${mergerfs_rpm}"
+        rm -f "${mergerfs_rpm}"
+        ;;
+    package-v2)
+        dnf install -y /mergerfs-rpm/mergerfs-*.x86_64_v2.rpm
+        rpm -q --qf '%{ARCH}\n' mergerfs | grep -Fqx 'x86_64_v2'
+        ;;
+    *)
+        echo "ERROR: unsupported MERGERFS_SOURCE=${MERGERFS_SOURCE}" >&2
+        exit 1
+        ;;
+esac
 
 if curl -fsSL \
     https://pkgs.tailscale.com/stable/rhel/10/tailscale.repo \
