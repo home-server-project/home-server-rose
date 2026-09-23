@@ -4,8 +4,6 @@ set -ouex pipefail
 source /ctx/build_files/software.env
 : "${HOME_SERVER_CRITICAL_PACKAGES:?HOME_SERVER_CRITICAL_PACKAGES must be set}"
 : "${HOME_SERVER_OPTIONAL_PACKAGES:?HOME_SERVER_OPTIONAL_PACKAGES must be set}"
-: "${TAILSCALE_PACKAGE:?TAILSCALE_PACKAGE must be set}"
-: "${NETBIRD_PACKAGE:?NETBIRD_PACKAGE must be set}"
 : "${MERGERFS_SOURCE:?MERGERFS_SOURCE must be set}"
 
 cp -avf /ctx/system_files/. /
@@ -124,34 +122,6 @@ case "${MERGERFS_SOURCE}" in
         ;;
 esac
 
-if curl -fsSL \
-    https://pkgs.tailscale.com/stable/rhel/10/tailscale.repo \
-    -o /etc/yum.repos.d/tailscale.repo; then
-    sed -ri 's/^enabled=1/enabled=0/' /etc/yum.repos.d/tailscale.repo || true
-    if dnf --enablerepo=tailscale-stable install -y "${TAILSCALE_PACKAGE}"; then
-        systemctl disable tailscaled.service 2>/dev/null || true
-    else
-        echo 'Optional Tailscale package failed to install.' > /usr/share/home-server-rose/build-health/tailscale.failed
-    fi
-else
-    echo 'Optional Tailscale repository failed to resolve.' > /usr/share/home-server-rose/build-health/tailscale.failed
-fi
-
-cat > /etc/yum.repos.d/netbird.repo <<'REPO'
-[netbird]
-name=NetBird
-baseurl=https://pkgs.netbird.io/yum/
-enabled=0
-gpgcheck=1
-gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key
-repo_gpgcheck=1
-REPO
-if dnf --setopt=tsflags=noscripts --enablerepo=netbird install -y "${NETBIRD_PACKAGE}"; then
-    systemctl disable netbird.service 2>/dev/null || true
-else
-    echo 'Optional NetBird package failed to install.' > /usr/share/home-server-rose/build-health/netbird.failed
-fi
-
 for unit in nut-server.service nut-monitor.service nut-driver@.service; do
     systemctl disable "${unit}" 2>/dev/null || true
 done
@@ -185,11 +155,13 @@ systemctl enable firewalld.service 2>/dev/null || true
 systemctl enable sshd.service 2>/dev/null || true
 
 # Cheap build-time checks. Functional release gates run against the completed image in CI.
-for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge git file zstd gcc g++ make ps; do
+for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge tailscale netbird git file zstd gcc g++ make ps; do
     command -v "${cmd}"
 done
 
 rpm -q \
+    tailscale \
+    netbird \
     sudo \
     systemd-resolved \
     zram-generator \
@@ -211,6 +183,11 @@ rpm -q \
     procps-ng
 
 test -f /usr/share/cockpit/upside/manifest.json
+
+test -f /usr/lib/systemd/system/tailscaled.service
+test -f /etc/systemd/system/netbird.service
+test "$(systemctl is-enabled tailscaled.service)" = "enabled"
+test "$(systemctl is-enabled netbird.service)" = "enabled"
 
 test -f /usr/share/homebrew.tar.zst
 test -f /usr/lib/systemd/system/brew-setup.service
