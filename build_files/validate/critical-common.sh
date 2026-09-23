@@ -48,18 +48,25 @@ pass '/var/tmp early-boot mountpoint'
 
 for cmd in \
     sudo visudo podman toolbox nmcli resolvectl firewall-cmd sshd cockpit-bridge \
-    mergerfs btrfs mkfs.btrfs exportfs smbd testparm git file zstd gcc g++ make ps; do
+    tailscale netbird mergerfs btrfs mkfs.btrfs exportfs smbd testparm git file zstd gcc g++ make ps; do
     command -v "${cmd}" >/dev/null
     pass "command ${cmd}"
 done
 
 rpm -q \
+    tailscale netbird \
     sudo systemd-resolved toolbox \
     btrfs-progs nfs-utils samba \
     intel-compute-runtime \
     cockpit-system cockpit-files cockpit-podman cockpit-storaged \
     cockpit-upside file git zstd gcc gcc-c++ make procps-ng >/dev/null
 pass 'critical package contract'
+
+test -f /usr/lib/systemd/system/tailscaled.service
+test -f /etc/systemd/system/netbird.service
+test "$(systemctl is-enabled tailscaled.service)" = "enabled"
+test "$(systemctl is-enabled netbird.service)" = "enabled"
+pass 'Base 10 VPN service contract'
 
 test -f /usr/share/cockpit/upside/manifest.json
 pass 'UPSide Cockpit extension'
