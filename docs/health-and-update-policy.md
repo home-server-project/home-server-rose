@@ -57,8 +57,6 @@ CI does not claim that nested KVM itself works merely because GitHub Actions pas
 The following capabilities are intended to be present on both images but do not justify blocking an otherwise healthy OS/security rebuild by themselves:
 
 - NUT / UPS utilities
-- Tailscale
-- NetBird
 - WireGuard tooling
 - fwupd and hardware diagnostic tools
 - PowerTOP
