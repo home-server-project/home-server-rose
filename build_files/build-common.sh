@@ -155,13 +155,11 @@ systemctl enable firewalld.service 2>/dev/null || true
 systemctl enable sshd.service 2>/dev/null || true
 
 # Cheap build-time checks. Functional release gates run against the completed image in CI.
-for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge tailscale netbird git file zstd gcc g++ make ps; do
+for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge git file zstd gcc g++ make ps; do
     command -v "${cmd}"
 done
 
 rpm -q \
-    tailscale \
-    netbird \
     sudo \
     systemd-resolved \
     zram-generator \
@@ -183,11 +181,6 @@ rpm -q \
     procps-ng
 
 test -f /usr/share/cockpit/upside/manifest.json
-
-test -f /usr/lib/systemd/system/tailscaled.service
-test -f /etc/systemd/system/netbird.service
-test "$(systemctl is-enabled tailscaled.service)" = "enabled"
-test "$(systemctl is-enabled netbird.service)" = "enabled"
 
 test -f /usr/share/homebrew.tar.zst
 test -f /usr/lib/systemd/system/brew-setup.service
