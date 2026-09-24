@@ -150,18 +150,16 @@ install -m0755 /ctx/build_files/validate/identity.sh \
     /usr/libexec/home-server-rose/health/identity
 
 systemctl enable NetworkManager.service 2>/dev/null || true
-systemctl enable systemd-resolved.service
 systemctl enable firewalld.service 2>/dev/null || true
 systemctl enable sshd.service 2>/dev/null || true
 
 # Cheap build-time checks. Functional release gates run against the completed image in CI.
-for cmd in bootc podman nmcli nmtui firewall-cmd sshd resolvectl sudo visudo btrfs mergerfs cockpit-bridge git file zstd gcc g++ make ps; do
+for cmd in bootc podman nmcli nmtui firewall-cmd sshd sudo visudo btrfs mergerfs cockpit-bridge git file zstd gcc g++ make ps; do
     command -v "${cmd}"
 done
 
 rpm -q \
     sudo \
-    systemd-resolved \
     zram-generator \
     btrfs-progs \
     nfs-utils \
@@ -202,19 +200,10 @@ visudo -cf /etc/sudoers
 test -f /etc/systemd/zram-generator.conf
 grep -Eq '^zram-size[[:space:]]*=[[:space:]]*4096$' /etc/systemd/zram-generator.conf
 
-test -f /etc/NetworkManager/conf.d/90-systemd-resolved.conf
-grep -Fqx '[main]' /etc/NetworkManager/conf.d/90-systemd-resolved.conf
-grep -Fqx 'dns=systemd-resolved' /etc/NetworkManager/conf.d/90-systemd-resolved.conf
-
-test -f /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
-grep -Fqx 'L+ /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf' \
-    /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
-
 test -f /usr/lib/systemd/system/home-server-rose-update.service
 test -f /usr/lib/systemd/system/home-server-rose-update.timer
 test "$(systemctl is-enabled bootc-fetch-apply-updates.timer)" = "masked"
 test "$(systemctl is-enabled bootc-fetch-apply-updates.service)" = "masked"
 test "$(systemctl is-enabled home-server-rose-update.timer)" = "enabled"
-test "$(systemctl is-enabled systemd-resolved.service)" = "enabled"
 
 semodule -l >/dev/null
