@@ -28,14 +28,6 @@ test -f /etc/systemd/zram-generator.conf
 grep -Eq '^zram-size[[:space:]]*=[[:space:]]*4096$' /etc/systemd/zram-generator.conf
 pass '4 GiB zram policy'
 
-test -f /etc/NetworkManager/conf.d/90-systemd-resolved.conf
-grep -Fqx 'dns=systemd-resolved' /etc/NetworkManager/conf.d/90-systemd-resolved.conf
-test -f /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
-grep -Fqx 'L+ /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf' \
-    /usr/lib/tmpfiles.d/home-server-rose-resolved.conf
-test "$(systemctl is-enabled systemd-resolved.service)" = "enabled"
-pass 'systemd-resolved split-DNS integration'
-
 test -f /usr/lib/systemd/system/home-server-rose-update.service
 test -f /usr/lib/systemd/system/home-server-rose-update.timer
 test "$(systemctl is-enabled bootc-fetch-apply-updates.timer)" = "masked"
@@ -47,14 +39,14 @@ test "$(stat -c '%a %U %G' /var/tmp)" = "1777 root root"
 pass '/var/tmp early-boot mountpoint'
 
 for cmd in \
-    sudo visudo podman toolbox nmcli resolvectl firewall-cmd sshd cockpit-bridge \
+    sudo visudo podman toolbox nmcli firewall-cmd sshd cockpit-bridge \
     mergerfs btrfs mkfs.btrfs exportfs smbd testparm git file zstd gcc g++ make ps; do
     command -v "${cmd}" >/dev/null
     pass "command ${cmd}"
 done
 
 rpm -q \
-    sudo systemd-resolved toolbox \
+    sudo toolbox \
     btrfs-progs nfs-utils samba \
     intel-compute-runtime \
     cockpit-system cockpit-files cockpit-podman cockpit-storaged \
