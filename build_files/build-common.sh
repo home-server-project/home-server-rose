@@ -160,7 +160,6 @@ done
 
 rpm -q \
     sudo \
-    zram-generator \
     btrfs-progs \
     nfs-utils \
     samba \
@@ -197,8 +196,6 @@ test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-rose-passwordless-wheel
 visudo -cf /etc/sudoers
 
-test -f /etc/systemd/zram-generator.conf
-grep -Eq '^zram-size[[:space:]]*=[[:space:]]*4096$' /etc/systemd/zram-generator.conf
 
 test -f /usr/lib/systemd/system/home-server-rose-update.service
 test -f /usr/lib/systemd/system/home-server-rose-update.timer

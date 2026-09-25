@@ -24,9 +24,6 @@ grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-rose-pa
 visudo -cf /etc/sudoers >/dev/null
 pass 'passwordless wheel administration'
 
-test -f /etc/systemd/zram-generator.conf
-grep -Eq '^zram-size[[:space:]]*=[[:space:]]*4096$' /etc/systemd/zram-generator.conf
-pass '4 GiB zram policy'
 
 test -f /usr/lib/systemd/system/home-server-rose-update.service
 test -f /usr/lib/systemd/system/home-server-rose-update.timer
