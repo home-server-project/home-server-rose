@@ -186,7 +186,25 @@ test -f /usr/lib/systemd/system/brew-update.timer
 test -f /usr/lib/systemd/system/brew-upgrade.service
 test -f /usr/lib/systemd/system/brew-upgrade.timer
 test -f /etc/profile.d/brew.sh
-tar --zstd -tf /usr/share/homebrew.tar.zst | grep -Eq '(^|/)home/linuxbrew/.linuxbrew/bin/brew$'
+tar --zstd -tf /usr/share/homebrew.tar.zst | grep -E '(^|/)home/linuxbrew/.linuxbrew/bin/brew
+test "$(systemctl is-enabled brew-setup.service)" = "enabled"
+test "$(systemctl is-enabled brew-update.timer)" = "enabled"
+test "$(systemctl is-enabled brew-upgrade.timer 2>/dev/null || true)" = "disabled"
+
+test -f /etc/sudoers.d/90-home-server-rose-passwordless-wheel
+test "$(stat -c '%a %U %G' /etc/sudoers.d/90-home-server-rose-passwordless-wheel)" = "440 root root"
+grep -Fqx '%wheel ALL=(ALL) NOPASSWD: ALL' /etc/sudoers.d/90-home-server-rose-passwordless-wheel
+visudo -cf /etc/sudoers
+
+
+test -f /usr/lib/systemd/system/home-server-rose-update.service
+test -f /usr/lib/systemd/system/home-server-rose-update.timer
+test "$(systemctl is-enabled bootc-fetch-apply-updates.timer)" = "masked"
+test "$(systemctl is-enabled bootc-fetch-apply-updates.service)" = "masked"
+test "$(systemctl is-enabled home-server-rose-update.timer)" = "enabled"
+
+semodule -l >/dev/null
+ >/dev/null
 test "$(systemctl is-enabled brew-setup.service)" = "enabled"
 test "$(systemctl is-enabled brew-update.timer)" = "enabled"
 test "$(systemctl is-enabled brew-upgrade.timer 2>/dev/null || true)" = "disabled"
