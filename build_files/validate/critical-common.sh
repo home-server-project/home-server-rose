@@ -60,7 +60,7 @@ test -f /usr/lib/systemd/system/brew-update.timer
 test -f /usr/lib/systemd/system/brew-upgrade.service
 test -f /usr/lib/systemd/system/brew-upgrade.timer
 test -f /etc/profile.d/brew.sh
-tar --zstd -tf /usr/share/homebrew.tar.zst | grep -Eq '(^|/)home/linuxbrew/.linuxbrew/bin/brew$'
+tar --zstd -tf /usr/share/homebrew.tar.zst | grep -E '(^|/)home/linuxbrew/.linuxbrew/bin/brew$' >/dev/null
 test "$(systemctl is-enabled brew-setup.service)" = "enabled"
 test "$(systemctl is-enabled brew-update.timer)" = "enabled"
 test "$(systemctl is-enabled brew-upgrade.timer 2>/dev/null || true)" = "disabled"
