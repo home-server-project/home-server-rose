@@ -7,12 +7,24 @@ if [[ "$#" -lt 1 ]]; then
 fi
 
 POLICY="/etc/containers/policy.json"
+VENDOR_POLICY="/usr/share/containers/policy.json"
 KEY="/usr/lib/pki/containers/home-server-project.pub"
 SIGSTORE_REGISTRIES="/etc/containers/registries.d/ghcr.io-home-server-project.yaml"
 
 [[ -f /ctx/cosign.pub ]] || { echo "ERROR: /ctx/cosign.pub is missing."; exit 1; }
-[[ -f "${POLICY}" ]] || { echo "ERROR: ${POLICY} is missing."; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required."; exit 1; }
+
+# AlmaLinux 10.3 / Podman 6 moved vendor container configuration from
+# /etc/containers to /usr/share/containers. Keep Rose policy customizations in
+# /etc/containers so they remain administrator overrides, seeding the policy
+# from the vendor default when the legacy location is no longer populated.
+if [[ ! -f "${POLICY}" ]]; then
+    [[ -f "${VENDOR_POLICY}" ]] || {
+        echo "ERROR: neither ${POLICY} nor ${VENDOR_POLICY} exists."
+        exit 1
+    }
+    install -Dm0644 "${VENDOR_POLICY}" "${POLICY}"
+fi
 
 install -Dm0644 /ctx/cosign.pub "${KEY}"
 
